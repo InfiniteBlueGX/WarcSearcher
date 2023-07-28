@@ -1,5 +1,5 @@
 # WarcSearcher
-A Python tool that performs regex searching iteratively over the contents of warc.gz files.
+A Python tool that performs regex keyword searching iteratively over the contents of warc.gz files.
 
 ## Setup
 ### Parameters
@@ -11,3 +11,5 @@ More TBD
 * Migrate configuration based global variables to a config file
 * GUI?
 * HTML output?
+
+## Credits
