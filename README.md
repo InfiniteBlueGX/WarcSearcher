@@ -18,3 +18,6 @@ For now, you will need to provide filepaths for ARCHIVES_DIRECTORY and DEFINITIO
 * HTML output?
 
 ## Credits
+This program was developed by the following members of the Lost Media Wiki:
+* CrazyTom
+* Bozo (InfiniteBlueGX)
