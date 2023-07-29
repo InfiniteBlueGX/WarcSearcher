@@ -27,6 +27,12 @@ MAX_THREADS = 4
 ZIP_LOCK = Lock()
 
 
+logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s"
+    )
+
+
 def iterate_through_gz_files(gz_directory_path):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
 
@@ -206,18 +212,20 @@ def initialize_output_data():
 def create_output_directory():
     findings_directory = "Findings_" + datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
     global FINDINGS_OUTPUT_PATH
-    if (FINDINGS_OUTPUT_PATH == '' or not os.path.exists(FINDINGS_OUTPUT_PATH)):
+    if not os.path.exists(FINDINGS_OUTPUT_PATH):
+        logging.warning(colored(f"Output path does not exist - using current working directory instead: {os.getcwd()}", 'yellow'))
         FINDINGS_OUTPUT_PATH = os.path.join(os.getcwd(), findings_directory)
     else:
         FINDINGS_OUTPUT_PATH = os.path.join(FINDINGS_OUTPUT_PATH, findings_directory)
     os.makedirs(FINDINGS_OUTPUT_PATH)
 
 
-def initialize_logging(output_directory):
+def initialize_logging_to_file(output_directory):
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.FileHandler(f"{output_directory}/output_log.log"), logging.StreamHandler(sys.stdout)]
+        handlers=[logging.FileHandler(f"{output_directory}/output_log.log"), logging.StreamHandler(sys.stdout)],
+        force=True
     )
 
 
@@ -244,8 +252,8 @@ if __name__ == '__main__':
         sys.exit()
     check_arguments()
     create_output_directory()
-    initialize_logging(FINDINGS_OUTPUT_PATH)
-    logging.info(f"Findings output directory '{FINDINGS_OUTPUT_PATH}' created.")
+    initialize_logging_to_file(FINDINGS_OUTPUT_PATH)
+    logging.info(f"Findings output directory created: '{FINDINGS_OUTPUT_PATH}'")
     create_regex_and_output_file_lists()
     create_patterns()
     initialize_output_data()
