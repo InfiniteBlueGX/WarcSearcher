@@ -17,8 +17,8 @@ from warcio.archiveiterator import ArchiveIterator
 
 ARCHIVES_DIRECTORY = ''
 DEFINITIONS_DIRECTORY = ''
-ZIP_FILES_WITH_MATCHES = False
 FINDINGS_OUTPUT_PATH = ''
+ZIP_FILES_WITH_MATCHES = False
 OUTPUT_TXT_FILES_LIST = []
 REGEX_LIST = []
 PATTERNS_LIST = []
@@ -29,6 +29,10 @@ ZIP_LOCK = Lock()
 
 def iterate_through_gz_files(gz_directory_path):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
+
+    if(not gz_files):
+        logging.warning(colored(f"No .gz files were found in {gz_directory_path} or any subdirectories.", 'yellow'))
+        return
 
     with ThreadPoolExecutor(MAX_THREADS) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
