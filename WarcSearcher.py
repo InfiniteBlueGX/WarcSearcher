@@ -228,7 +228,20 @@ def check_arguments():
             ZIP_FILES_WITH_MATCHES = True
 
 
+def valid_input_directories():
+    if not os.path.exists(ARCHIVES_DIRECTORY):
+        logging.error(colored(f"Directory containing the .gz archives to search does not exist: {ARCHIVES_DIRECTORY}", 'red'))
+        return False
+    if not os.path.exists(DEFINITIONS_DIRECTORY):
+        logging.error(colored(f"Directory containing the regex definition files does not exist: {DEFINITIONS_DIRECTORY}", 'red'))
+        return False
+    
+    return True
+
+
 if __name__ == '__main__':
+    if not valid_input_directories():
+        sys.exit()
     check_arguments()
     create_output_directory()
     initialize_logging(FINDINGS_OUTPUT_PATH)
