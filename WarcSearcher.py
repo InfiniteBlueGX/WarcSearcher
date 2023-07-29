@@ -206,7 +206,7 @@ def initialize_output_data():
 def create_output_directory():
     findings_directory = "Findings_" + datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
     global FINDINGS_OUTPUT_PATH
-    if (FINDINGS_OUTPUT_PATH == ''):
+    if (FINDINGS_OUTPUT_PATH == '' or not os.path.exists(FINDINGS_OUTPUT_PATH)):
         FINDINGS_OUTPUT_PATH = os.path.join(os.getcwd(), findings_directory)
     else:
         FINDINGS_OUTPUT_PATH = os.path.join(FINDINGS_OUTPUT_PATH, findings_directory)
