@@ -269,8 +269,37 @@ def valid_input_directories():
     return True
 
 
+def read_globals_from_config():
+    path_current_directory = os.path.dirname(__file__)
+    path_config_file = os.path.join(path_current_directory, 'config.ini')
+
+    if not os.path.exists(path_config_file):
+        logging.error(colored(f"Configuration file does not exist at: {path_config_file}", 'red'))
+        return False
+    
+    parser = configparser.ConfigParser()
+    parser.read(path_config_file)
+
+    global ARCHIVES_DIRECTORY
+    ARCHIVES_DIRECTORY = parser.get('GLOBALS', 'archives_directory')
+
+    global DEFINITIONS_DIRECTORY
+    DEFINITIONS_DIRECTORY = parser.get('GLOBALS', 'definitions_directory')
+
+    global FINDINGS_OUTPUT_PATH
+    FINDINGS_OUTPUT_PATH = parser.get('GLOBALS', 'findings_output_path')
+
+    global ZIP_FILES_WITH_MATCHES
+    ZIP_FILES_WITH_MATCHES = parser.getboolean('GLOBALS', 'zip_files_with_matches')
+
+    global MAX_THREADS
+    MAX_THREADS = parser.getint('GLOBALS', 'max_threads')
+
+    return True
+
+
 if __name__ == '__main__':
-    if not valid_input_directories():
+    if not read_globals_from_config() or not valid_input_directories():
         sys.exit()
     check_arguments()
     create_output_directory()
