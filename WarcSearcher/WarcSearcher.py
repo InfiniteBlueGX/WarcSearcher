@@ -36,7 +36,7 @@ logging.basicConfig(
 def iterate_through_gz_files(gz_directory_path):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
 
-    if(not gz_files):
+    if not gz_files:
         logging.warning(colored(f"No .gz files were found in {gz_directory_path} or any subdirectories.", 'yellow'))
         return
 
@@ -67,13 +67,6 @@ def open_warc_gz_file(gz_file_path):
                     logging.info(f"Processed {index} records in {gz_file_path}")
         except Exception as e:
             logging.error(colored(f"Error ocurred when reading contents of {gz_file_path}: \n{e}", 'red'))
-
-
-def is_file_binary(file_data):
-    # Set of characters typically found in text files
-    text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
-    first_1024_bytes = file_data[:1024]
-    return bool(first_1024_bytes.translate(None, text_chars))
 
 
 def search_function(file_data, searched_file_name, root_gz_file, recursion_depth):
@@ -107,50 +100,64 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
 
     elif is_file_binary(file_data):
         # If the file is binary data (image, video, audio, etc), only search the file name, since searching the binary data is wasted effort
-        search_file_name(file_data, searched_file_name, root_gz_file)
+        search_file(file_data, searched_file_name, root_gz_file, True)
+
     else:
-        search_file_name(file_data, searched_file_name, root_gz_file)
-        search_file_content(file_data, searched_file_name, root_gz_file)
+        search_file(file_data, searched_file_name, root_gz_file, False)
 
 
-def search_file_content(file_data, searched_file_name, root_gz_file):
+def is_file_binary(file_data):
+    # Set of characters typically found in text files
+    text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
+    first_1024_bytes = file_data[:1024]
+    return bool(first_1024_bytes.translate(None, text_chars))
+
+
+def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
     for pattern, output_file in zip(PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
-        matches = list(re.finditer(pattern, file_data.decode('utf-8', 'ignore')))
-        if matches:
-            write_matches_to_findings_file(searched_file_name, output_file, False, root_gz_file, matches)
+        matches_name = list(re.finditer(pattern, searched_file_name))
+        if search_name_only:    
+            matches_contents = []
+        else:
+            matches_contents = list(re.finditer(pattern, file_data.decode('utf-8', 'ignore')))
+
+        if matches_name or matches_contents:
+            write_matches_to_findings_file(searched_file_name, output_file, search_name_only, root_gz_file, matches_name, matches_contents)
             if ZIP_FILES_WITH_MATCHES:  
-                write_file_with_match_to_zip(file_data, searched_file_name, output_file)         
+                write_file_with_match_to_zip(file_data, searched_file_name, output_file)
 
 
-def search_file_name(file_data, searched_file_name, root_gz_file):
-    for pattern, output_file in zip(PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
-        matches = list(re.finditer(pattern, searched_file_name))
-        if matches:
-            write_matches_to_findings_file(searched_file_name, output_file, True, root_gz_file, matches)
-            if ZIP_FILES_WITH_MATCHES:  
-                write_file_with_match_to_zip(file_data, searched_file_name, output_file) 
-
-
-def write_matches_to_findings_file(searched_file_name, output_file, is_searching_file_name, root_gz_file, matches):
+def write_matches_to_findings_file(searched_file_name, output_file, searching_name_only, root_gz_file, matches_name, matches_contents):
     try:
         full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_file)
-        filtered_matches = [match.group() for match in matches]
-        unique_matches_set = list(set(filtered_matches))
+        
+        filtered_matches_name, unique_matches_set_name = filter_and_extract_unique(matches_name)
+        filtered_matches_contents, unique_matches_set_contents = filter_and_extract_unique(matches_contents)
         
         with open(full_txt_path, 'a', encoding='utf-8') as findings_txt_file:
             findings_txt_file.write(f'[Archive: {root_gz_file}]\n')
             findings_txt_file.write(f'[File: {searched_file_name}]\n')
-            if is_searching_file_name:
-                findings_txt_file.write(f'[Matches found in file name: {len(filtered_matches)} ({len(filtered_matches)-len(unique_matches_set)} duplicates omitted)]\n')
-                for match_counter, match in enumerate(unique_matches_set, start=1):
-                    findings_txt_file.write(f'\n[Match #{match_counter} in file name]\n\n"{match}"\n\n')
+            if searching_name_only:
+                write_matches(findings_txt_file, filtered_matches_name, unique_matches_set_name, 'file name')
             else:
-                findings_txt_file.write(f'[Matches found: {len(filtered_matches)} ({len(filtered_matches)-len(unique_matches_set)} duplicates omitted)]\n')
-                for match_counter, match in enumerate(unique_matches_set, start=1):
-                    findings_txt_file.write(f'\n[Match #{match_counter}]\n\n"{match}"\n\n')
+                if filtered_matches_name:
+                    write_matches(findings_txt_file, filtered_matches_name, unique_matches_set_name, 'file name')
+                write_matches(findings_txt_file, filtered_matches_contents, unique_matches_set_contents, 'file contents')
             findings_txt_file.write('___________________________________________________________________\n\n')
     except Exception as e:
         logging.error(colored(f"Error ocurred when writing matches to findings file: {searched_file_name} \n{str(e)}", 'red'))
+
+
+def filter_and_extract_unique(matches):
+    filtered_matches = [match.group() for match in matches]
+    unique_matches_set = list(set(filtered_matches))
+    return filtered_matches, unique_matches_set
+
+
+def write_matches(findings_txt_file, filtered_matches, unique_matches_set, match_type):
+    findings_txt_file.write(f'[Matches found in {match_type}: {len(filtered_matches)} ({len(filtered_matches)-len(unique_matches_set)} duplicates omitted)]\n')
+    for match_counter, match in enumerate(unique_matches_set, start=1):
+        findings_txt_file.write(f'\n[Match #{match_counter} in {match_type}]\n\n"{match}"\n\n')
 
 
 def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
