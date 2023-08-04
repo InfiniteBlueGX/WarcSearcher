@@ -1,5 +1,7 @@
 # WarcSearcher
-A Python tool that performs regex keyword searching iteratively over the contents of warc.gz files. Built using Python 3.11.4.
+A Python tool that performs regex searches iteratively over the contents of warc.gz files. Uses Python 3.11.4.
+
+Known informally as the "Media Un-Loser", this tool is designed to facilitate the parsing of large web archives ([WARC files](https://archive-it.org/post/the-stack-warc-file/)) with a variety of search criteria, primarily in the context of lost media searches. It also aims to package the results for sharing in collaborative online settings.
 
 ## Setup
 
@@ -45,7 +47,12 @@ The executable should be created in a `dist` folder - copy it to the directory c
 * GUI?
 * HTML output?
 
+
+## Contributing
+
+Anyone is welcome to contribute to the repo! This is essentially a hobby project for members of the Lost Media Wiki, but anyone is welcome to set up a pull request.
+
 ## Credits
-This program was developed by the following members of the Lost Media Wiki:
+This tool was developed by the following members of the Lost Media Wiki:
 * CrazyTom
 * Bozo (InfiniteBlueGX)
