@@ -269,16 +269,14 @@ def valid_input_directories():
     return True
 
 
-def read_globals_from_config():
-    path_current_directory = os.path.dirname(__file__)
-    path_config_file = os.path.join(path_current_directory, 'config.ini')
+def read_globals_from_config():   
 
-    if not os.path.exists(path_config_file):
-        logging.error(colored(f"Configuration file does not exist at: {path_config_file}", 'red'))
+    if not os.path.isfile('config.ini'):
+        logging.error(colored("config.ini file does not exist in the working directory.", 'red'))
         return False
-    
+
     parser = configparser.ConfigParser()
-    parser.read(path_config_file)
+    parser.read('config.ini')
 
     global ARCHIVES_DIRECTORY
     ARCHIVES_DIRECTORY = parser.get('GLOBALS', 'archives_directory')
