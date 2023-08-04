@@ -110,8 +110,8 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
 def is_file_binary(file_data):
     # Set of characters typically found in text files
     text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
-    first_1024_bytes = file_data[:1024]
-    return bool(first_1024_bytes.translate(None, text_chars))
+    first_1024_chars = file_data[:1024]
+    return bool(first_1024_chars.translate(None, text_chars))
 
 
 def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
