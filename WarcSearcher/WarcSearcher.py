@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import zipfile
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from threading import Lock
@@ -25,7 +26,7 @@ REGEX_LIST = []
 PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
 MAX_THREADS = 4
-ZIP_LOCK = Lock()
+ZIP_LOCKS = defaultdict(Lock)
 
 logging.basicConfig(
         level=logging.INFO,
@@ -164,7 +165,7 @@ def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
     try:
         full_zip_path = os.path.join(FINDINGS_OUTPUT_PATH, (f"{os.path.splitext(output_file)[0]}.zip"))
     
-        with ZIP_LOCK:
+        with ZIP_LOCKS[full_zip_path]:
             with zipfile.ZipFile(full_zip_path, 'r') as zip_file_read:
                 if reformat_file_name(searched_file_name) in zip_file_read.namelist():
                     return
