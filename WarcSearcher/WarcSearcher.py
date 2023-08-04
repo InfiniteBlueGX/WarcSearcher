@@ -129,17 +129,17 @@ def write_matches_to_findings_file(searched_file_name, output_file, is_searching
         full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_file)
         filtered_matches = [match.group() for match in matches]
         unique_matches_set = list(set(filtered_matches))
+        
         with open(full_txt_path, 'a', encoding='utf-8') as findings_txt_file:
             findings_txt_file.write(f'[Archive: {root_gz_file}]\n')
             findings_txt_file.write(f'[File: {searched_file_name}]\n')
             if is_searching_file_name:
                 findings_txt_file.write(f'[Matches found in file name: {len(filtered_matches)} ({len(filtered_matches)-len(unique_matches_set)} duplicates omitted)]\n')
+                for match_counter, match in enumerate(unique_matches_set, start=1):
+                    findings_txt_file.write(f'\n[Match #{match_counter} in file name]\n\n"{match}"\n\n')
             else:
                 findings_txt_file.write(f'[Matches found: {len(filtered_matches)} ({len(filtered_matches)-len(unique_matches_set)} duplicates omitted)]\n')
-            for match_counter, match in enumerate(unique_matches_set, start=1):
-                if is_searching_file_name:
-                    findings_txt_file.write(f'\n[Match #{match_counter} in file name]\n\n"{match}"\n\n')
-                else:
+                for match_counter, match in enumerate(unique_matches_set, start=1):
                     findings_txt_file.write(f'\n[Match #{match_counter}]\n\n"{match}"\n\n')
             findings_txt_file.write('___________________________________________________________________\n\n')
     except Exception as e:
