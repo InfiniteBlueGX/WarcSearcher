@@ -26,6 +26,8 @@ PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
 MAX_THREADS = 4
 ZIP_LOCKS = defaultdict(Lock)
+ERROR_COUNT = 0
+WARNING_COUNT = 0
 
 logging.basicConfig(
         level=logging.INFO,
@@ -37,7 +39,7 @@ def iterate_through_gz_files(gz_directory_path):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
 
     if not gz_files:
-        logging.warning(f"No .gz files were found in {gz_directory_path} or any subdirectories.")
+        log_warning(f"No .gz files were found in {gz_directory_path} or any subdirectories.")
         return
 
     with ThreadPoolExecutor(MAX_THREADS) as executor:
@@ -52,7 +54,7 @@ def open_warc_gz_file(gz_file_path):
         logging.info(f"Beginning to process {gz_file_path}")
 
         if not contains_warc_file(warc_gz_file):
-            logging.warning(f"Cannot read contents of {warc_gz_file.name} - Either the .gz archive does not contain a WARC file, or the WARC file is malformed.")
+            log_warning(f"Cannot read contents of {warc_gz_file.name} - Either the .gz archive does not contain a WARC file, or the WARC file is malformed.")
             return       
 
         try:
@@ -66,12 +68,13 @@ def open_warc_gz_file(gz_file_path):
                 if index > 0 and index % 200 == 0:
                     logging.info(f"Processed {index} records in {gz_file_path}")
         except Exception as e:
-            logging.error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
+            log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
 
 def search_function(file_data, searched_file_name, root_gz_file, recursion_depth):
     if recursion_depth == MAX_RECURSION_DEPTH:
-        logging.error(f"Error: Maximum recursion depth of {MAX_RECURSION_DEPTH} was hit - terminating to avoid infinite looping.")
+        log_error(f"Error: Maximum recursion depth of {MAX_RECURSION_DEPTH} was hit - terminating to avoid infinite looping.")
+        input("Press Enter to exit...")
         sys.exit()
     
     recursion_depth += 1
@@ -145,7 +148,7 @@ def write_matches_to_findings_file(searched_file_name, output_file, searching_na
                 write_matches(findings_txt_file, filtered_matches_contents, unique_matches_set_contents, 'file contents')
             findings_txt_file.write('___________________________________________________________________\n\n')
     except Exception as e:
-        logging.error(f"Error ocurred when writing matches to findings file: {searched_file_name} \n{str(e)}")
+        log_error(f"Error ocurred when writing matches to findings file: {searched_file_name} \n{str(e)}")
 
 
 def filter_and_extract_unique(matches):
@@ -174,7 +177,7 @@ def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
                 zip_output_file.writestr(searched_file_name_reformatted, file_data)
 
     except Exception as e:
-        logging.error(f"Error ocurred when appending zip archive with file: {searched_file_name} \n{str(e)}")
+        log_error(f"Error ocurred when appending zip archive with file: {searched_file_name} \n{str(e)}")
 
 
 def reformat_file_name(file_name):
@@ -249,7 +252,7 @@ def create_output_directory():
     findings_directory = "Findings_" + datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
     global FINDINGS_OUTPUT_PATH
     if not os.path.exists(FINDINGS_OUTPUT_PATH):
-        logging.warning(f"Output path does not exist - using current working directory instead: {os.getcwd()}")
+        log_warning(f"Output path does not exist - using current working directory instead: {os.getcwd()}")
         FINDINGS_OUTPUT_PATH = os.path.join(os.getcwd(), findings_directory)
     else:
         FINDINGS_OUTPUT_PATH = os.path.join(FINDINGS_OUTPUT_PATH, findings_directory)
@@ -265,6 +268,18 @@ def initialize_logging_to_file(output_directory):
     )
 
 
+def log_warning(message):
+    logging.warning(f"{message}")
+    global WARNING_COUNT
+    WARNING_COUNT += 1
+
+
+def log_error(message):
+    logging.error(f"{message}")
+    global ERROR_COUNT
+    ERROR_COUNT += 1
+
+
 def check_arguments():
     if len(sys.argv) > 1:
         if sys.argv[1] == 'zip':
@@ -274,10 +289,10 @@ def check_arguments():
 
 def valid_input_directories():
     if not os.path.exists(ARCHIVES_DIRECTORY):
-        logging.error(f"Directory containing the .gz archives to search does not exist: {ARCHIVES_DIRECTORY}")
+        log_error(f"Directory containing the .gz archives to search does not exist: {ARCHIVES_DIRECTORY}")
         return False
     if not os.path.exists(DEFINITIONS_DIRECTORY):
-        logging.error(f"Directory containing the regex definition files does not exist: {DEFINITIONS_DIRECTORY}")
+        log_error(f"Directory containing the regex definition files does not exist: {DEFINITIONS_DIRECTORY}")
         return False
     
     return True
@@ -286,7 +301,7 @@ def valid_input_directories():
 def read_globals_from_config():   
 
     if not os.path.isfile('config.ini'):
-        logging.error("config.ini file does not exist in the working directory.")
+        log_error("config.ini file does not exist in the working directory.")
         return False
 
     parser = configparser.ConfigParser()
@@ -308,7 +323,7 @@ def read_globals_from_config():
         global MAX_THREADS
         MAX_THREADS = parser.getint('OPTIONAL', 'max_threads')
     except Exception as e:
-        logging.error(f"Error reading the contents of the config.ini file: \n{e}")
+        log_error(f"Error reading the contents of the config.ini file: \n{e}")
         return False
     
     return True
@@ -326,4 +341,5 @@ if __name__ == '__main__':
     create_patterns()
     initialize_output_data()
     iterate_through_gz_files(ARCHIVES_DIRECTORY)
-    logging.info(f"Finished - results have been output to {FINDINGS_OUTPUT_PATH}")
+    logging.info(f"Finished (Errors: {ERROR_COUNT}, Warnings: {WARNING_COUNT}) - results output to {FINDINGS_OUTPUT_PATH}")
+    input("Press Enter to exit...")
