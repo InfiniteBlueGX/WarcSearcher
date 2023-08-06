@@ -38,7 +38,7 @@ def iterate_through_gz_files(gz_directory_path):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
 
     if not gz_files:
-        log_warning(f"No .gz files were found in {gz_directory_path} or any subdirectories.")
+        log_error(f"No .gz files were found in {gz_directory_path} or any subdirectories.")
         return
 
     with ThreadPoolExecutor(MAX_THREADS) as executor:
@@ -53,7 +53,7 @@ def open_warc_gz_file(gz_file_path):
         logging.info(f"Beginning to process {gz_file_path}")
 
         if not contains_warc_file(warc_gz_file):
-            log_warning(f"Cannot read contents of {warc_gz_file.name} - Either the .gz archive does not contain a WARC file, or the WARC file is malformed.")
+            log_error(f"Cannot read contents of {warc_gz_file.name} - Either the .gz archive does not contain a WARC file, or the WARC file is malformed.")
             return       
 
         try:
@@ -96,7 +96,7 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
                 for file_name in rawr_file.infolist():
                     with rawr_file.open(file_name, mode='r') as nested_file:
                         search_function(nested_file.read(), nested_file.name, root_gz_file, recursion_depth)
-        except Exception as e:
+        except Exception:
             log_error(f"Error processing nested .rar archive - WinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the WinRar executable is added to your System Path environment variable.")
 
 
@@ -178,7 +178,6 @@ def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
             with zipfile.ZipFile(full_zip_path, 'a', zipfile.ZIP_DEFLATED) as zip_output_file:
                 searched_file_name_reformatted = reformat_file_name(searched_file_name)
                 zip_output_file.writestr(searched_file_name_reformatted, file_data)
-
     except Exception as e:
         log_error(f"Error ocurred when appending zip archive with file: {searched_file_name} \n{str(e)}")
 
@@ -232,7 +231,7 @@ def create_regex_and_output_file_lists():
                 regex_pattern = re.compile(raw_regex, re.IGNORECASE)
                 REGEX_PATTERNS_LIST.append(regex_pattern)
             except re.error:
-                log_error(f"Invalid regular expression: {raw_regex}")
+                log_error(f"Invalid regular expression in {definition_file}: {raw_regex}")
                 continue
             OUTPUT_TXT_FILES_LIST.append(f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt")
 
@@ -306,7 +305,6 @@ def valid_input_directories():
 
 
 def read_globals_from_config():   
-
     if not os.path.isfile('config.ini'):
         log_error("config.ini file does not exist in the working directory.")
         return False
