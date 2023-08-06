@@ -292,26 +292,31 @@ def read_globals_from_config():
     parser = configparser.ConfigParser()
     parser.read('config.ini')
 
-    global ARCHIVES_DIRECTORY
-    ARCHIVES_DIRECTORY = parser.get('REQUIRED', 'archives_directory')
+    try:
+        global ARCHIVES_DIRECTORY
+        ARCHIVES_DIRECTORY = parser.get('REQUIRED', 'archives_directory')
 
-    global DEFINITIONS_DIRECTORY
-    DEFINITIONS_DIRECTORY = parser.get('REQUIRED', 'definitions_directory')
+        global DEFINITIONS_DIRECTORY
+        DEFINITIONS_DIRECTORY = parser.get('REQUIRED', 'definitions_directory')
 
-    global FINDINGS_OUTPUT_PATH
-    FINDINGS_OUTPUT_PATH = parser.get('OPTIONAL', 'findings_output_path')
+        global FINDINGS_OUTPUT_PATH
+        FINDINGS_OUTPUT_PATH = parser.get('OPTIONAL', 'findings_output_path')
 
-    global ZIP_FILES_WITH_MATCHES
-    ZIP_FILES_WITH_MATCHES = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
+        global ZIP_FILES_WITH_MATCHES
+        ZIP_FILES_WITH_MATCHES = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
 
-    global MAX_THREADS
-    MAX_THREADS = parser.getint('OPTIONAL', 'max_threads')
-
+        global MAX_THREADS
+        MAX_THREADS = parser.getint('OPTIONAL', 'max_threads')
+    except Exception as e:
+        logging.error(f"Error reading the contents of the config.ini file: \n{e}")
+        return False
+    
     return True
 
 
 if __name__ == '__main__':
     if not read_globals_from_config() or not valid_input_directories():
+        input("Press Enter to exit...")
         sys.exit()
     check_arguments()
     create_output_directory()
