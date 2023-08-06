@@ -293,19 +293,19 @@ def read_globals_from_config():
     parser.read('config.ini')
 
     global ARCHIVES_DIRECTORY
-    ARCHIVES_DIRECTORY = parser.get('GLOBALS', 'archives_directory')
+    ARCHIVES_DIRECTORY = parser.get('REQUIRED', 'archives_directory')
 
     global DEFINITIONS_DIRECTORY
-    DEFINITIONS_DIRECTORY = parser.get('GLOBALS', 'definitions_directory')
+    DEFINITIONS_DIRECTORY = parser.get('REQUIRED', 'definitions_directory')
 
     global FINDINGS_OUTPUT_PATH
-    FINDINGS_OUTPUT_PATH = parser.get('GLOBALS', 'findings_output_path')
+    FINDINGS_OUTPUT_PATH = parser.get('OPTIONAL', 'findings_output_path')
 
     global ZIP_FILES_WITH_MATCHES
-    ZIP_FILES_WITH_MATCHES = parser.getboolean('GLOBALS', 'zip_files_with_matches')
+    ZIP_FILES_WITH_MATCHES = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
 
     global MAX_THREADS
-    MAX_THREADS = parser.getint('GLOBALS', 'max_threads')
+    MAX_THREADS = parser.getint('OPTIONAL', 'max_threads')
 
     return True
 
