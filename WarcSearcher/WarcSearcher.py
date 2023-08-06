@@ -296,7 +296,10 @@ def valid_input_directories():
         log_error(f"Directory containing the .gz archives to search does not exist: {ARCHIVES_DIRECTORY}")
         return False
     if not os.path.exists(DEFINITIONS_DIRECTORY):
-        log_error(f"Directory containing the regex definition files does not exist: {DEFINITIONS_DIRECTORY}")
+        log_error(f"Directory containing the regex definition .txt files does not exist: {DEFINITIONS_DIRECTORY}")
+        return False
+    if not glob.glob(DEFINITIONS_DIRECTORY + '/*.txt'):
+        log_error(f"Directory that should contain the regex definition .txt files does not contain any: {DEFINITIONS_DIRECTORY}")
         return False
     
     return True
