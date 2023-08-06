@@ -3,16 +3,28 @@ A Python tool that performs regex searches iteratively over the contents of warc
 
 Known informally as the "Media Un-Loser", this tool is designed to facilitate the parsing of large web archives ([WARC files](https://archive-it.org/post/the-stack-warc-file/)) with a variety of search criteria, primarily in the context of lost media searches. It also aims to package the results for sharing in collaborative online settings.
 
+## Features
+
+* Regex searching of all records in a WARC
+* Support for any number of regex "definitions" to search with - results output is segregated by definition
+* Recursive searching of nested .zip, .7z, .rar, and .gz archives within a WARC
+* Results output to .txt file per-definition
+* Optional per-definition .zip output of all files from the WARC that yielded a match
+* Multithreaded warc.gz processing
+* File name and contents searched (binary file data is skipped)
+
 ## Setup
 
 [Work in progress]
 
 * Ensure Python 3.11.4 is installed
+* In order to process .rar files encountered while searching, WinRar must be installed and the path to the executable must be added to your System Path environment variable (i.e. `C:\Program Files\WinRAR`)
 * Acquire `WarcSearcher.py`, `config.ini`, and `requirements.txt`, and place them in a local directory.
 * Using a terminal, navigate to the directory you placed the files in and install all required libraries: `pip install -r requirements.txt`
-* Edit `config.ini` to provide the program with the following information:
+* Edit `config.ini` to provide the program with the following required information:
   * `archives_directory` - (Required) The directory containing your warc.gz files. Subfolders will be searched recursively during program execution.
   * `definitions_directory` - (Required) The directory containing your regular expressions saved as .txt files. See the Definitions section for more details.
+* Optionally, you may also want to change these fields in `config.ini`:
   * `findings_output_path` - (Optional) The directory for the results to be output to. Defaults to the current working directory if empty or invalid.
   * `zip_files_with_matches` - (Optional) Boolean indicating whether to add all files that yielded a match to a per-definition .zip file in the output directory. It is highly recommended to be used in order to better ascertain the context of matches - however, it can potentially consume large amounts of disk space depending on the regexes used to search. Use with discretion. Defaults to `False`.
   * `max_threads` - (Optional) The number of concurrent threads to iterate over the .gz files with. Each .gz file is assigned its own thread up to the maximum specified. Use with discretion. Defaults to `4`.
@@ -44,6 +56,7 @@ The executable should be created in a `dist` folder - copy it to the directory c
 
 ## Future Development
 * Standalone executable
+* Github Actions workflow
 * GUI?
 * HTML output?
 
