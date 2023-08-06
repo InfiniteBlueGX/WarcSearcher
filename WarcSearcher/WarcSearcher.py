@@ -92,10 +92,14 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
                 search_function(file_content.read(), file_name, root_gz_file, recursion_depth)
 
     elif is_rar_file(file_data):
-        with rarfile.RarFile(BytesIO(file_data)) as rawr_file:
-            for file_name in rawr_file.infolist():
-                with rawr_file.open(file_name, mode='r') as nested_file:
-                    search_function(nested_file.read(), nested_file.name, root_gz_file, recursion_depth)
+        try:
+            with rarfile.RarFile(BytesIO(file_data)) as rawr_file:
+                for file_name in rawr_file.infolist():
+                    with rawr_file.open(file_name, mode='r') as nested_file:
+                        search_function(nested_file.read(), nested_file.name, root_gz_file, recursion_depth)
+        except Exception as e:
+            log_error(f"Error processing nested .rar archive - WinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the WinRar executable is added to your System Path environment variable.")
+
 
     elif is_gz_file(file_data):
         with gzip.open(BytesIO(file_data), 'rb') as nested_file:
