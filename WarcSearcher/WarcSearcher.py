@@ -234,6 +234,11 @@ def create_regex_and_output_file_lists():
                 log_error(f"Invalid regular expression in {definition_file}: {raw_regex}")
                 continue
             OUTPUT_TXT_FILES_LIST.append(f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt")
+    
+    if not OUTPUT_TXT_FILES_LIST:
+        log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
+        input("Press Enter to exit...")
+        sys.exit()
 
 
 def initialize_output_data():
