@@ -21,8 +21,7 @@ DEFINITIONS_DIRECTORY = ''
 FINDINGS_OUTPUT_PATH = ''
 ZIP_FILES_WITH_MATCHES = False
 OUTPUT_TXT_FILES_LIST = []
-REGEX_LIST = []
-PATTERNS_LIST = []
+REGEX_PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
 MAX_THREADS = 4
 ZIP_LOCKS = defaultdict(Lock)
@@ -121,7 +120,7 @@ def is_file_binary(file_data):
 
 
 def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
-    for pattern, output_file in zip(PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
+    for pattern, output_file in zip(REGEX_PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
         matches_name = list(re.finditer(pattern, searched_file_name))
         if search_name_only:    
             matches_contents = []
@@ -228,23 +227,24 @@ def create_regex_and_output_file_lists():
     definition_files = [os.path.join(DEFINITIONS_DIRECTORY, f) for f in os.listdir(DEFINITIONS_DIRECTORY) if f.endswith('.txt')]
     for definition_file in definition_files:
         with open(definition_file, 'r', encoding='utf-8') as df:
-            REGEX_LIST.append(df.read().strip())
+            raw_regex = df.read().strip()
+            try:
+                regex_pattern = re.compile(raw_regex, re.IGNORECASE)
+                REGEX_PATTERNS_LIST.append(regex_pattern)
+            except re.error:
+                log_error(f"Invalid regular expression: {raw_regex}")
+                continue
             OUTPUT_TXT_FILES_LIST.append(f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt")
 
 
-def create_patterns():
-    global PATTERNS_LIST 
-    PATTERNS_LIST = [re.compile(regex, re.IGNORECASE) for regex in REGEX_LIST]
-
-
 def initialize_output_data():
-    for regex, output_txt_file in zip(REGEX_LIST, OUTPUT_TXT_FILES_LIST):
+    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
         full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
         with open(full_txt_path, 'a', encoding='utf-8') as findings_txt_file:
             timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
             findings_txt_file.write(f'[{output_txt_file}]\n')
             findings_txt_file.write(f'[Created: {timestamp}]\n\n')
-            findings_txt_file.write(f'[Regex used]\n{regex}\n\n')
+            findings_txt_file.write(f'[Regex used]\n{pattern.pattern}\n\n')
             findings_txt_file.write('___________________________________________________________________\n\n')
         if ZIP_FILES_WITH_MATCHES:
             full_zip_path = os.path.join(FINDINGS_OUTPUT_PATH, (f"{os.path.splitext(output_txt_file)[0]}.zip"))
@@ -345,7 +345,6 @@ if __name__ == '__main__':
     initialize_logging_to_file(FINDINGS_OUTPUT_PATH)
     logging.info(f"Findings output directory created: '{FINDINGS_OUTPUT_PATH}'")
     create_regex_and_output_file_lists()
-    create_patterns()
     initialize_output_data()
     iterate_through_gz_files(ARCHIVES_DIRECTORY)
     logging.info(f"Finished (Errors: {ERROR_COUNT}, Warnings: {WARNING_COUNT}) - results output to {FINDINGS_OUTPUT_PATH}")
