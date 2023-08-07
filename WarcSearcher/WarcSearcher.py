@@ -39,8 +39,8 @@ def iterate_through_gz_files(gz_directory_path):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
 
     if not gz_files:
-        log_error(f"No .gz files were found in {gz_directory_path} or any subdirectories.")
-        return
+        log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
+        sys.exit()
 
     with ThreadPoolExecutor(MAX_THREADS) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
@@ -287,14 +287,14 @@ def log_error(message):
     ERROR_COUNT += 1
 
 
-def check_arguments():
+def read_arguments():
     if len(sys.argv) > 1:
         if sys.argv[1] == 'zip':
             global ZIP_FILES_WITH_MATCHES
             ZIP_FILES_WITH_MATCHES = True
 
 
-def valid_input_directories():
+def validate_input_directories():
     if not os.path.exists(ARCHIVES_DIRECTORY):
         log_error(f"Directory containing the .gz archives to search does not exist: {ARCHIVES_DIRECTORY}")
         sys.exit()
@@ -342,8 +342,8 @@ def finish():
 if __name__ == '__main__':
     atexit.register(finish)
     read_globals_from_config()
-    valid_input_directories()
-    check_arguments()
+    validate_input_directories()
+    read_arguments()
     create_output_directory()
     initialize_logging_to_file(FINDINGS_OUTPUT_PATH)
     logging.info(f"Findings output directory created: {FINDINGS_OUTPUT_PATH}")
