@@ -1,3 +1,4 @@
+import atexit
 import configparser
 import datetime
 import glob
@@ -73,7 +74,6 @@ def open_warc_gz_file(gz_file_path):
 def search_function(file_data, searched_file_name, root_gz_file, recursion_depth):
     if recursion_depth == MAX_RECURSION_DEPTH:
         log_error(f"Error: Maximum recursion depth of {MAX_RECURSION_DEPTH} was hit - terminating to avoid infinite looping.")
-        input("Press Enter to exit...")
         sys.exit()
     
     recursion_depth += 1
@@ -97,7 +97,7 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
                     with rawr_file.open(file_name, mode='r') as nested_file:
                         search_function(nested_file.read(), nested_file.name, root_gz_file, recursion_depth)
         except Exception:
-            log_error(f"Error processing nested .rar archive in: {root_gz_file}\n\tWinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the folder containing the WinRar executable is added to your System Path environment variable.")
+            log_error(f"Error processing nested .rar archive '{searched_file_name}' in: {root_gz_file}\n\tWinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the folder containing the WinRar executable is added to your System Path environment variable.")
 
 
     elif is_gz_file(file_data):
@@ -237,7 +237,6 @@ def create_regex_and_output_file_lists():
     
     if not OUTPUT_TXT_FILES_LIST:
         log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
-        input("Press Enter to exit...")
         sys.exit()
 
 
@@ -298,21 +297,19 @@ def check_arguments():
 def valid_input_directories():
     if not os.path.exists(ARCHIVES_DIRECTORY):
         log_error(f"Directory containing the .gz archives to search does not exist: {ARCHIVES_DIRECTORY}")
-        return False
+        sys.exit()
     if not os.path.exists(DEFINITIONS_DIRECTORY):
         log_error(f"Directory containing the regex definition .txt files does not exist: {DEFINITIONS_DIRECTORY}")
-        return False
+        sys.exit()
     if not glob.glob(DEFINITIONS_DIRECTORY + '/*.txt'):
         log_error(f"Directory that should contain the regex definition .txt files does not contain any: {DEFINITIONS_DIRECTORY}")
-        return False
-    
-    return True
+        sys.exit()
 
 
 def read_globals_from_config():   
     if not os.path.isfile('config.ini'):
         log_error("config.ini file does not exist in the working directory.")
-        return False
+        sys.exit()
 
     parser = configparser.ConfigParser()
     parser.read('config.ini')
@@ -334,15 +331,18 @@ def read_globals_from_config():
         MAX_THREADS = parser.getint('OPTIONAL', 'max_threads')
     except Exception as e:
         log_error(f"Error reading the contents of the config.ini file: \n{e}")
-        return False
-    
-    return True
+        sys.exit()
+
+
+def finish():
+    logging.info(f"[Errors: {ERROR_COUNT}, Warnings: {WARNING_COUNT}]")
+    input("Press Enter to exit...")
 
 
 if __name__ == '__main__':
-    if not read_globals_from_config() or not valid_input_directories():
-        input("Press Enter to exit...")
-        sys.exit()
+    atexit.register(finish)
+    read_globals_from_config()
+    valid_input_directories()
     check_arguments()
     create_output_directory()
     initialize_logging_to_file(FINDINGS_OUTPUT_PATH)
@@ -350,5 +350,4 @@ if __name__ == '__main__':
     create_regex_and_output_file_lists()
     initialize_output_data()
     iterate_through_gz_files(ARCHIVES_DIRECTORY)
-    logging.info(f"Finished (Errors: {ERROR_COUNT}, Warnings: {WARNING_COUNT}) - results output to {FINDINGS_OUTPUT_PATH}")
-    input("Press Enter to exit...")
+    logging.info(f"Finished - results output to {FINDINGS_OUTPUT_PATH}")
