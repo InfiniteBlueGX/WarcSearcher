@@ -97,7 +97,7 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
                     with rawr_file.open(file_name, mode='r') as nested_file:
                         search_function(nested_file.read(), nested_file.name, root_gz_file, recursion_depth)
         except Exception:
-            log_error(f"Error processing nested .rar archive - WinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the WinRar executable is added to your System Path environment variable.")
+            log_error(f"Error processing nested .rar archive in: {root_gz_file}\n\tWinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the folder containing the WinRar executable is added to your System Path environment variable.")
 
 
     elif is_gz_file(file_data):
@@ -346,7 +346,7 @@ if __name__ == '__main__':
     check_arguments()
     create_output_directory()
     initialize_logging_to_file(FINDINGS_OUTPUT_PATH)
-    logging.info(f"Findings output directory created: '{FINDINGS_OUTPUT_PATH}'")
+    logging.info(f"Findings output directory created: {FINDINGS_OUTPUT_PATH}")
     create_regex_and_output_file_lists()
     initialize_output_data()
     iterate_through_gz_files(ARCHIVES_DIRECTORY)
