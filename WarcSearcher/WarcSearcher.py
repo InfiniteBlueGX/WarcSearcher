@@ -142,7 +142,7 @@ def write_matches_to_findings_file(searched_file_name, output_file, searching_na
         
         with open(full_txt_path, 'a', encoding='utf-8') as findings_txt_file:
             findings_txt_file.write(f'[Archive: {root_gz_file}]\n')
-            findings_txt_file.write(f'[File: {searched_file_name}]\n')
+            findings_txt_file.write(f'[File: {searched_file_name}]\n\n')
             if searching_name_only:
                 write_matches(findings_txt_file, filtered_matches_name, unique_matches_set_name, 'file name')
             else:
@@ -163,7 +163,7 @@ def filter_and_extract_unique(matches):
 def write_matches(findings_txt_file, filtered_matches, unique_matches_set, match_type):
     findings_txt_file.write(f'[Matches found in {match_type}: {len(filtered_matches)} ({len(filtered_matches)-len(unique_matches_set)} duplicates omitted)]\n')
     for match_counter, match in enumerate(unique_matches_set, start=1):
-        findings_txt_file.write(f'\n[Match #{match_counter} in {match_type}]\n\n"{match}"\n\n')
+        findings_txt_file.write(f'[Match #{match_counter} in {match_type}]\n\n"{match}"\n\n')
 
 
 def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
