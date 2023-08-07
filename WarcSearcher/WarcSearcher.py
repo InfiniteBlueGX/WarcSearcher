@@ -15,6 +15,7 @@ from threading import Lock
 
 import py7zr
 import rarfile
+from binaryornot.check import is_binary_string
 from warcio.archiveiterator import ArchiveIterator
 
 ARCHIVES_DIRECTORY = ''
@@ -104,19 +105,12 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
         with gzip.open(BytesIO(file_data), 'rb') as nested_file:
             search_function(nested_file.read(), searched_file_name, root_gz_file, recursion_depth)
 
-    elif is_file_binary(file_data):
+    elif is_binary_string(file_data[:1024]):
         # If the file is binary data (image, video, audio, etc), only search the file name, since searching the binary data is wasted effort
         search_file(file_data, searched_file_name, root_gz_file, True)
 
     else:
         search_file(file_data, searched_file_name, root_gz_file, False)
-
-
-def is_file_binary(file_data):
-    # Set of characters typically found in text files
-    text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
-    first_1024_chars = file_data[:1024]
-    return bool(first_1024_chars.translate(None, text_chars))
 
 
 def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
