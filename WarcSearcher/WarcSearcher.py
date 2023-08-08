@@ -123,14 +123,14 @@ def is_file_binary(file_data):
 
 def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
     for pattern, output_file in zip(REGEX_PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
-        matches_name = list(re.finditer(pattern, searched_file_name))
+        matches_list_name = [match for match in re.finditer(pattern, searched_file_name)]
         if search_name_only:    
-            matches_contents = []
+            matches_list_contents = []
         else:
-            matches_contents = list(re.finditer(pattern, file_data.decode('utf-8', 'ignore')))
+            matches_list_contents = [match for match in re.finditer(pattern, file_data.decode('utf-8', 'ignore'))]
 
-        if matches_name or matches_contents:
-            write_matches_to_findings_file(searched_file_name, output_file, search_name_only, root_gz_file, matches_name, matches_contents)
+        if matches_list_name or matches_list_contents:
+            write_matches_to_findings_file(searched_file_name, output_file, search_name_only, root_gz_file, matches_list_name, matches_list_contents)
             if ZIP_FILES_WITH_MATCHES:  
                 write_file_with_match_to_zip(file_data, searched_file_name, output_file)
 
@@ -156,9 +156,9 @@ def write_matches_to_findings_file(searched_file_name, output_file, searching_na
 
 
 def filter_and_extract_unique(matches):
-    filtered_matches = [match.group() for match in matches]
-    unique_matches_set = list(set(filtered_matches))
-    return filtered_matches, unique_matches_set
+    filtered_matches_list = [match.group() for match in matches]
+    unique_matches_set = [match for match in set(filtered_matches_list)]
+    return filtered_matches_list, unique_matches_set
 
 
 def write_matches(findings_txt_file, filtered_matches, unique_matches_set, match_type):
