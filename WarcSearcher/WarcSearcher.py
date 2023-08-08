@@ -15,7 +15,8 @@ from threading import Lock
 
 import py7zr
 import rarfile
-from fastwarc.warc import ArchiveIterator, WarcRecordType
+from fastwarc.stream_io import FileStream, GZipStream
+from fastwarc.warc import ArchiveIterator
 
 ARCHIVES_DIRECTORY = ''
 DEFINITIONS_DIRECTORY = ''
@@ -50,24 +51,26 @@ def iterate_through_gz_files(gz_directory_path):
 
 
 def open_warc_gz_file(gz_file_path):
-    with gzip.open(gz_file_path, 'rb') as warc_gz_file:
-        logging.info(f"Beginning to process {gz_file_path}")
+    gz_file_stream = GZipStream(FileStream(gz_file_path, 'rb'))
+    logging.info(f"Beginning to process {gz_file_path}")     
 
-        if not contains_warc_file(warc_gz_file):
-            log_error(f"Cannot read contents of {warc_gz_file.name} - Either the .gz archive does not contain a WARC file, or the WARC file is malformed.")
-            return       
-
-        try:
-            for index, record in enumerate(ArchiveIterator(warc_gz_file, record_types=WarcRecordType.response)):
+    try:
+        records = ArchiveIterator(gz_file_stream)
+        if not any(records):
+            log_warning(f"No WARC records found in {gz_file_path}")
+            return
+        
+        for index, record in enumerate(records):
+            if record.headers['WARC-Type'] == 'response':
                 file_content = record.reader.read()
                 file_name = record.headers['WARC-Target-URI']
                 search_function(file_content, file_name, gz_file_path, 0)
                     
-                # Every 200 records processed from the WARC file, log the total number of records searched to keep track
-                if index > 0 and index % 200 == 0:
-                    logging.info(f"Searched {index} records in {gz_file_path}")
-        except Exception as e:
-            log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
+            #Every 200 records processed from the WARC file, log the total number of records searched to keep track
+            if index > 0 and index % 200 == 0:
+                logging.info(f"Processed {index} records in {gz_file_path}")
+    except Exception as e:
+        log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
 
 def search_function(file_data, searched_file_name, root_gz_file, recursion_depth):
@@ -179,12 +182,6 @@ def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
 def reformat_file_name(file_name):
     web_prefixes_removed = re.sub(r'(http://|https://|www.)', '', file_name)
     return re.sub(r'[\\/*?:"<>|]', '_', web_prefixes_removed)
-    
-
-def contains_warc_file(warc_gz_file):
-    first_bytes = warc_gz_file.read(10)
-    warc_gz_file.seek(0)  # reset the file's internal pointer to the beginning
-    return first_bytes.startswith(b'WARC/') 
 
 
 def is_zip_file(file_data):
