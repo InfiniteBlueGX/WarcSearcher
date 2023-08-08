@@ -241,10 +241,6 @@ def initialize_output_data():
             findings_txt_file.write(f'[Created: {timestamp}]\n\n')
             findings_txt_file.write(f'[Regex used]\n{pattern.pattern}\n\n')
             findings_txt_file.write('___________________________________________________________________\n\n')
-        if ZIP_FILES_WITH_MATCHES:
-            full_zip_path = os.path.join(FINDINGS_OUTPUT_PATH, (f"{os.path.splitext(output_txt_file)[0]}.zip"))
-            with zipfile.ZipFile(full_zip_path, 'w') as empty_zip:
-                pass
 
 
 def create_output_directory():
