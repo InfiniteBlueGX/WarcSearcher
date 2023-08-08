@@ -15,7 +15,7 @@ from threading import Lock
 
 import py7zr
 import rarfile
-from warcio.archiveiterator import ArchiveIterator
+from fastwarc.warc import ArchiveIterator, WarcRecordType
 
 ARCHIVES_DIRECTORY = ''
 DEFINITIONS_DIRECTORY = ''
@@ -58,15 +58,14 @@ def open_warc_gz_file(gz_file_path):
             return       
 
         try:
-            for index, record in enumerate(ArchiveIterator(warc_gz_file)):
-                if record.rec_type == 'response':
-                    file_content = record.content_stream().read()
-                    file_name = record.rec_headers.get_header('WARC-Target-URI')
-                    search_function(file_content, file_name, gz_file_path, 0)
+            for index, record in enumerate(ArchiveIterator(warc_gz_file, record_types=WarcRecordType.response)):
+                file_content = record.reader.read()
+                file_name = record.headers['WARC-Target-URI']
+                search_function(file_content, file_name, gz_file_path, 0)
                     
                 # Every 200 records processed from the WARC file, log the total number of records searched to keep track
                 if index > 0 and index % 200 == 0:
-                    logging.info(f"Processed {index} records in {gz_file_path}")
+                    logging.info(f"Searched {index} records in {gz_file_path}")
         except Exception as e:
             log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 

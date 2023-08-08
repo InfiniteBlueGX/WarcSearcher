@@ -1,3 +1,3 @@
+FastWARC==0.14.3
 py7zr==0.20.5
 rarfile==4.0
-warcio==1.7.4
