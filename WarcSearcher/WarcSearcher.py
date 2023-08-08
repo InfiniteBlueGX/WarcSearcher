@@ -60,15 +60,16 @@ def open_warc_gz_file(gz_file_path):
             log_warning(f"No WARC records found in {gz_file_path}")
             return
         
-        for index, record in enumerate(records):
+        records_searched = 0
+        for record in records:
             if record.headers['WARC-Type'] == 'response':
+                records_searched += 1
                 file_content = record.reader.read()
                 file_name = record.headers['WARC-Target-URI']
                 search_function(file_content, file_name, gz_file_path, 0)
                     
-            #Every 200 records processed from the WARC file, log the total number of records searched to keep track
-            if index > 0 and index % 200 == 0:
-                logging.info(f"Processed {index} records in {gz_file_path}")
+                if records_searched > 0 and records_searched % 200 == 0:
+                    logging.info(f"Searched {records_searched} records in {gz_file_path}")
     except Exception as e:
         log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
