@@ -48,7 +48,7 @@ def iterate_through_gz_files(gz_directory_path):
         for future in as_completed(tasks):
             future.result()
 
-                
+
 def open_warc_gz_file(gz_file_path):
     with gzip.open(gz_file_path, 'rb') as warc_gz_file:
         logging.info(f"Beginning to process {gz_file_path}")
@@ -167,15 +167,12 @@ def write_matches(findings_txt_file, filtered_matches, unique_matches_set, match
 def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
     try:
         full_zip_path = os.path.join(FINDINGS_OUTPUT_PATH, (f"{os.path.splitext(output_file)[0]}.zip"))
-    
-        with ZIP_LOCKS[full_zip_path]:
-            with zipfile.ZipFile(full_zip_path, 'r') as zip_file_read:
-                if reformat_file_name(searched_file_name) in zip_file_read.namelist():
-                    return
 
+        with ZIP_LOCKS[full_zip_path]:
             with zipfile.ZipFile(full_zip_path, 'a', zipfile.ZIP_DEFLATED) as zip_output_file:
-                searched_file_name_reformatted = reformat_file_name(searched_file_name)
-                zip_output_file.writestr(searched_file_name_reformatted, file_data)
+                file_name_reformatted = reformat_file_name(searched_file_name)
+                if file_name_reformatted not in zip_output_file.namelist():
+                    zip_output_file.writestr(file_name_reformatted, file_data)
     except Exception as e:
         log_error(f"Error ocurred when appending zip archive with file: {searched_file_name} \n{str(e)}")
 
