@@ -1,7 +1,9 @@
 # WarcSearcher
-A Python tool that performs regex searches iteratively over the contents of warc.gz files. Uses Python 3.11.4.
+A Python tool that performs regex keyword searches iteratively over the contents of warc.gz files. Uses Python 3.11.4.
 
-Known informally as the "Media Un-Loser", this tool is designed to facilitate the parsing of large web archives ([WARC files](https://archive-it.org/post/the-stack-warc-file/)) with a variety of search criteria, primarily in the context of lost media searches. It also aims to package the results for sharing in collaborative online settings.
+Known informally as the "Media Un-Loser", this tool is designed to facilitate the parsing of large web archives ([WARC files](https://iipc.github.io/warc-specifications/specifications/warc-format/warc-1.1/)) with a variety of search criteria, primarily in the context of lost media searches. It also aims to package the results for sharing in collaborative online settings.
+
+WarcSearcher uses the [FastWARC](https://resiliparse.chatnoir.eu/en/latest/man/fastwarc.html) library for faster warc.gz processing compared to similar libraries such as warcio.
 
 ## Features
 
@@ -36,7 +38,8 @@ Known informally as the "Media Un-Loser", this tool is designed to facilitate th
 
 ### Definitions
 
-WarcSearcher operates by reading in any number of "definition" files, and segregates the output by each definition. A definition is simply a .txt file in the user-defined `definitions_directory` that contains a regular expression. 
+WarcSearcher operates by reading in any number of regex "definition" files. A definition is simply a .txt file in the user-defined `definitions_directory` that contains a regular expression. 
+For each definition, it performs the regex keyword search against all warc.gz files found in the archives directory, then segregates the output by each definition. 
 
 Here's a simple example of the contents of a `fruits.txt` that yields a match for any case-insensitive ocurrence of "Banana", "Apple", or "Orange":
 
