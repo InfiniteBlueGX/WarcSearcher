@@ -181,8 +181,8 @@ def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
 
 
 def reformat_file_name(file_name):
-    web_prefixes_removed = re.sub(r'(http://|https://|www.)', '', file_name)
-    return re.sub(r'[\\/*?:"<>|]', '_', web_prefixes_removed)
+    web_prefixes_removed = file_name.replace('http://', '').replace('https://', '').replace('www.', '')
+    return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))
 
 
 def is_zip_file(file_data):
