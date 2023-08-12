@@ -61,7 +61,7 @@ def open_warc_gz_file(gz_file_path):
     logging.info(f"Beginning to process {gz_file_path}")     
 
     try:
-        records = ArchiveIterator(gz_file_stream)
+        records = ArchiveIterator(gz_file_stream, strict_mode=False)
         if not any(records):
             log_warning(f"No WARC records found in {gz_file_path}")
             return
