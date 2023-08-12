@@ -60,10 +60,13 @@ In local testing, I've found that creating an executable speeds up the searching
 The executable should be created in a `dist` folder - copy it to the directory containing your config.ini, then it should be ready for use. Be aware that it may be falsely flagged by antivirus software.
 
 ## Future Development
+* Output by mimetype
+* Performance optimizations
 * Standalone executable
-* Github Actions workflow
 * GUI?
 * HTML output?
+
+WarcSearcher is tailored for a relatively narrow use case - searching the non-binary WARC response records from a local warc.gz file. However, if anyone would like to have other use cases implemented, feel free to submit a feature request and we'll see what can be done.
 
 
 ## Contributing
