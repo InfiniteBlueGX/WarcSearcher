@@ -75,7 +75,7 @@ def open_warc_gz_file(gz_file_path):
                 search_function(file_content, file_name, gz_file_path, 0)
                     
                 if records_searched > 0 and records_searched % 200 == 0:
-                    logging.info(f"Searched {records_searched} records in {gz_file_path}")
+                    logging.info(f"Searched {records_searched} response records in {gz_file_path}")
     except Exception as e:
         log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
@@ -155,7 +155,7 @@ def write_matches_to_findings_file(searched_file_name, output_txt_file, searchin
                 write_matches(TXT_FILES_DICT[full_txt_path], filtered_matches_contents, unique_matches_set_contents, 'file contents')
             TXT_FILES_DICT[full_txt_path].write('___________________________________________________________________\n\n')
     except Exception as e:
-        log_error(f"Error ocurred when writing matches to findings file: {searched_file_name} \n{str(e)}")
+        log_error(f"Error ocurred when writing matches to findings .txt file: {searched_file_name} \n{str(e)}")
 
 
 def write_file_with_match_to_zip(file_data, file_name, output_file_name):
@@ -189,7 +189,7 @@ def create_regex_and_output_file_lists():
                 regex_pattern = re.compile(raw_regex, re.IGNORECASE)
                 REGEX_PATTERNS_LIST.append(regex_pattern)
             except re.error:
-                log_error(f"Invalid regular expression in {definition_file}: {raw_regex}")
+                log_error(f"Invalid regular expression found in {definition_file}")
                 continue
             OUTPUT_TXT_FILES_LIST.append(f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt")
     
@@ -213,7 +213,7 @@ def create_output_directory():
     findings_directory = "Findings_" + datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
     global FINDINGS_OUTPUT_PATH
     if not os.path.exists(FINDINGS_OUTPUT_PATH):
-        log_warning(f"Output path does not exist - using current working directory instead: {os.getcwd()}")
+        log_warning(f"Output path designated in config.ini does not exist - using current working directory instead: {os.getcwd()}")
         FINDINGS_OUTPUT_PATH = os.path.join(os.getcwd(), findings_directory)
     else:
         FINDINGS_OUTPUT_PATH = os.path.join(FINDINGS_OUTPUT_PATH, findings_directory)
