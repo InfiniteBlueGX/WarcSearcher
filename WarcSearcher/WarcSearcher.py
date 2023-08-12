@@ -108,7 +108,7 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
         except Exception:
             log_error(f"Error processing nested .rar archive '{searched_file_name}' in: {root_gz_file}\n\tWinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the folder containing the WinRar executable is added to your System Path environment variable.")
 
-    elif is_gz_file(file_data):
+    elif is_gz_file(file_data, searched_file_name):
         with gzip.open(BytesIO(file_data), 'rb') as nested_file:
             search_function(nested_file.read(), searched_file_name, root_gz_file, recursion_depth)
 

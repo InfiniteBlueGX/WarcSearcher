@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import zipfile
 from io import BytesIO
@@ -38,10 +39,10 @@ def is_rar_file(file_data):
         return False
 
     
-def is_gz_file(file_data):
+def is_gz_file(file_data, file_name):
     try:
-        # Magic number for .gz file signature - if it matches the first two bytes of the file data, it's a .gz file
-        return file_data[:2].hex() == '1f8b'
+        # Magic number for .gz file signature - if it matches the first three bytes of the file data, it's a .gz file
+        return file_data[:3].hex() == '1f8b08' and os.path.splitext(file_name)[1] == '.gz'
     except (AttributeError, TypeError):
         return False
     
