@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -26,9 +27,11 @@ OUTPUT_TXT_FILES_LIST = []
 REGEX_PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
 MAX_THREADS = 4
-ZIP_LOCKS = defaultdict(Lock)
 ERROR_COUNT = 0
 WARNING_COUNT = 0
+ZIP_FILES_DICT = {}
+ZIP_FILES_DICT_LOCK = Lock()
+ZIP_LOCKS = defaultdict(Lock)
 
 logging.basicConfig(
         level=logging.INFO,
@@ -132,7 +135,7 @@ def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
         if matches_list_name or matches_list_contents:
             write_matches_to_findings_file(searched_file_name, output_file, search_name_only, root_gz_file, matches_list_name, matches_list_contents)
             if ZIP_FILES_WITH_MATCHES:  
-                write_file_with_match_to_zip(file_data, searched_file_name, output_file)
+                write_file_with_match_to_zip(file_data, searched_file_name, os.path.splitext(output_file)[0])
 
 
 def write_matches_to_findings_file(searched_file_name, output_file, searching_name_only, root_gz_file, matches_name, matches_contents):
@@ -167,17 +170,26 @@ def write_matches(findings_txt_file, filtered_matches, unique_matches_set, match
         findings_txt_file.write(f'[Match #{match_counter} in {match_type}]\n\n"{match}"\n\n')
 
 
-def write_file_with_match_to_zip(file_data, searched_file_name, output_file):
+def write_file_with_match_to_zip(file_data, file_name, output_file_name):
     try:
-        full_zip_path = os.path.join(FINDINGS_OUTPUT_PATH, (f"{os.path.splitext(output_file)[0]}.zip"))
+        full_zip_path = os.path.join(FINDINGS_OUTPUT_PATH, (f"{output_file_name}.zip"))
+        
+        with ZIP_FILES_DICT_LOCK:
+            if full_zip_path not in ZIP_FILES_DICT:
+                zip_file = zipfile.ZipFile(full_zip_path, 'a', zipfile.ZIP_DEFLATED)
+                ZIP_FILES_DICT[full_zip_path] = {
+                    'zip_file': zip_file,
+                    'names': set(zip_file.namelist())
+                }
 
         with ZIP_LOCKS[full_zip_path]:
-            with zipfile.ZipFile(full_zip_path, 'a', zipfile.ZIP_DEFLATED) as zip_output_file:
-                file_name_reformatted = reformat_file_name(searched_file_name)
-                if file_name_reformatted not in zip_output_file.namelist():
-                    zip_output_file.writestr(file_name_reformatted, file_data)
+            file_name_reformatted = reformat_file_name(file_name)
+            if file_name_reformatted not in ZIP_FILES_DICT[full_zip_path]['names']:
+                ZIP_FILES_DICT[full_zip_path]['zip_file'].writestr(file_name_reformatted, file_data)
+                ZIP_FILES_DICT[full_zip_path]['names'].add(file_name_reformatted)
+
     except Exception as e:
-        log_error(f"Error ocurred when appending zip archive with file: {searched_file_name} \n{str(e)}")
+        log_error(f"Error ocurred when appending zip archive with file: {file_name} \n{str(e)}")
 
 
 def reformat_file_name(file_name):
@@ -322,7 +334,15 @@ def read_globals_from_config():
         sys.exit()
 
 
+def close_zip_files():
+    with ZIP_FILES_DICT_LOCK:
+        for zip_file_dict in ZIP_FILES_DICT.values():
+            zip_file = zip_file_dict['zip_file']
+            zip_file.close()
+
+
 def finish():
+    close_zip_files()
     logging.info(f"[Errors: {ERROR_COUNT}, Warnings: {WARNING_COUNT}]")
     input("Press Enter to exit...")
 
