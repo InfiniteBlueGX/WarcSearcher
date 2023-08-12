@@ -7,7 +7,6 @@ import logging
 import os
 import re
 import sys
-import threading
 import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -29,8 +28,12 @@ MAX_RECURSION_DEPTH = 50
 MAX_THREADS = 4
 ERROR_COUNT = 0
 WARNING_COUNT = 0
+
+TXT_FILES_DICT = {}
 ZIP_FILES_DICT = {}
+TXT_FILES_DICT_LOCK = Lock()
 ZIP_FILES_DICT_LOCK = Lock()
+TXT_LOCKS = defaultdict(Lock)
 ZIP_LOCKS = defaultdict(Lock)
 
 logging.basicConfig(
@@ -125,7 +128,7 @@ def is_file_binary(file_data):
 
 
 def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
-    for pattern, output_file in zip(REGEX_PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
+    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
         matches_list_name = [match for match in re.finditer(pattern, searched_file_name)]
         if search_name_only:    
             matches_list_contents = []
@@ -133,27 +136,31 @@ def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
             matches_list_contents = [match for match in re.finditer(pattern, file_data.decode('utf-8', 'ignore'))]
 
         if matches_list_name or matches_list_contents:
-            write_matches_to_findings_file(searched_file_name, output_file, search_name_only, root_gz_file, matches_list_name, matches_list_contents)
+            write_matches_to_findings_file(searched_file_name, output_txt_file, search_name_only, root_gz_file, matches_list_name, matches_list_contents)
             if ZIP_FILES_WITH_MATCHES:  
-                write_file_with_match_to_zip(file_data, searched_file_name, os.path.splitext(output_file)[0])
+                write_file_with_match_to_zip(file_data, searched_file_name, os.path.splitext(output_txt_file)[0])
 
 
-def write_matches_to_findings_file(searched_file_name, output_file, searching_name_only, root_gz_file, matches_name, matches_contents):
+def write_matches_to_findings_file(searched_file_name, output_txt_file, searching_name_only, root_gz_file, matches_name, matches_contents):
     try:
-        full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_file)
+        full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
         filtered_matches_name, unique_matches_set_name = filter_and_extract_unique(matches_name)
         filtered_matches_contents, unique_matches_set_contents = filter_and_extract_unique(matches_contents)
-        
-        with open(full_txt_path, 'a', encoding='utf-8') as findings_txt_file:
-            findings_txt_file.write(f'[Archive: {root_gz_file}]\n')
-            findings_txt_file.write(f'[File: {searched_file_name}]\n\n')
+
+        with TXT_FILES_DICT_LOCK:
+            if full_txt_path not in TXT_FILES_DICT:
+                TXT_FILES_DICT[full_txt_path] = open(full_txt_path, 'a', encoding='utf-8')
+
+        with TXT_LOCKS[full_txt_path]:
+            TXT_FILES_DICT[full_txt_path].write(f'[Archive: {root_gz_file}]\n')
+            TXT_FILES_DICT[full_txt_path].write(f'[File: {searched_file_name}]\n\n')
             if searching_name_only:
-                write_matches(findings_txt_file, filtered_matches_name, unique_matches_set_name, 'file name')
+                write_matches(TXT_FILES_DICT[full_txt_path], filtered_matches_name, unique_matches_set_name, 'file name')
             else:
                 if filtered_matches_name:
-                    write_matches(findings_txt_file, filtered_matches_name, unique_matches_set_name, 'file name')
-                write_matches(findings_txt_file, filtered_matches_contents, unique_matches_set_contents, 'file contents')
-            findings_txt_file.write('___________________________________________________________________\n\n')
+                    write_matches(TXT_FILES_DICT[full_txt_path], filtered_matches_name, unique_matches_set_name, 'file name')
+                write_matches(TXT_FILES_DICT[full_txt_path], filtered_matches_contents, unique_matches_set_contents, 'file contents')
+            TXT_FILES_DICT[full_txt_path].write('___________________________________________________________________\n\n')
     except Exception as e:
         log_error(f"Error ocurred when writing matches to findings file: {searched_file_name} \n{str(e)}")
 
@@ -334,6 +341,12 @@ def read_globals_from_config():
         sys.exit()
 
 
+def close_txt_files():
+    with TXT_FILES_DICT_LOCK:
+        for txt_file in TXT_FILES_DICT.values():
+            txt_file.close()
+
+
 def close_zip_files():
     with ZIP_FILES_DICT_LOCK:
         for zip_file_dict in ZIP_FILES_DICT.values():
@@ -342,6 +355,7 @@ def close_zip_files():
 
 
 def finish():
+    close_txt_files()
     close_zip_files()
     logging.info(f"[Errors: {ERROR_COUNT}, Warnings: {WARNING_COUNT}]")
     input("Press Enter to exit...")
