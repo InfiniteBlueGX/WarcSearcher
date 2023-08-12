@@ -110,7 +110,8 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
 
     elif is_gz_file(file_data, searched_file_name):
         with gzip.open(BytesIO(file_data), 'rb') as nested_file:
-            search_function(nested_file.read(), searched_file_name, root_gz_file, recursion_depth)
+            nested_file_name = extract_nested_gz_filename(file_data[:200])
+            search_function(nested_file.read(), nested_file_name, root_gz_file, recursion_depth)                    
 
     elif is_file_binary(file_data):
         # If the file is binary data (image, video, audio, etc), only search the file name, since searching the binary data is wasted effort

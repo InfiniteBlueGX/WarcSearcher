@@ -47,6 +47,14 @@ def is_gz_file(file_data, file_name):
         return False
     
 
+def extract_nested_gz_filename(first_gz_file_bytes):
+    parts = first_gz_file_bytes.split(b'\x00')
+    if len(parts) > 1:
+        return parts[1].decode('utf-8')
+    else:
+        return None
+
+
 def reformat_file_name(file_name):
     web_prefixes_removed = file_name.replace('http://', '').replace('https://', '').replace('www.', '')
     return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))
