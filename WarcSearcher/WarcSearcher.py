@@ -24,7 +24,6 @@ ARCHIVES_DIRECTORY = ''
 DEFINITIONS_DIRECTORY = ''
 FINDINGS_OUTPUT_PATH = ''
 ZIP_FILES_WITH_MATCHES = False
-OUTPUT_TXT_FILES_LIST = []
 REGEX_PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
 MAX_THREADS = 4
@@ -122,7 +121,7 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
 
 
 def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
-    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
+    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, TXT_FILES_DICT):
         matches_list_name = [match for match in re.finditer(pattern, searched_file_name)]
         if search_name_only:    
             matches_list_contents = []
@@ -142,19 +141,18 @@ def write_matches_to_findings_file(searched_file_name, output_txt_file, searchin
         filtered_matches_contents, unique_matches_set_contents = filter_and_extract_unique(matches_contents)
 
         with TXT_FILES_DICT_LOCK:
-            if full_txt_path not in TXT_FILES_DICT:
-                TXT_FILES_DICT[full_txt_path] = open(full_txt_path, 'a', encoding='utf-8')
+            TXT_FILES_DICT[output_txt_file] = open(full_txt_path, 'a', encoding='utf-8')
 
         with TXT_LOCKS[full_txt_path]:
-            TXT_FILES_DICT[full_txt_path].write(f'[Archive: {root_gz_file}]\n')
-            TXT_FILES_DICT[full_txt_path].write(f'[File: {searched_file_name}]\n\n')
+            TXT_FILES_DICT[output_txt_file].write(f'[Archive: {root_gz_file}]\n')
+            TXT_FILES_DICT[output_txt_file].write(f'[File: {searched_file_name}]\n\n')
             if searching_name_only:
-                write_matches(TXT_FILES_DICT[full_txt_path], filtered_matches_name, unique_matches_set_name, 'file name')
+                write_matches(TXT_FILES_DICT[output_txt_file], filtered_matches_name, unique_matches_set_name, 'file name')
             else:
                 if filtered_matches_name:
-                    write_matches(TXT_FILES_DICT[full_txt_path], filtered_matches_name, unique_matches_set_name, 'file name')
-                write_matches(TXT_FILES_DICT[full_txt_path], filtered_matches_contents, unique_matches_set_contents, 'file contents')
-            TXT_FILES_DICT[full_txt_path].write('___________________________________________________________________\n\n')
+                    write_matches(TXT_FILES_DICT[output_txt_file], filtered_matches_name, unique_matches_set_name, 'file name')
+                write_matches(TXT_FILES_DICT[output_txt_file], filtered_matches_contents, unique_matches_set_contents, 'file contents')
+            TXT_FILES_DICT[output_txt_file].write('___________________________________________________________________\n\n')
     except Exception as e:
         log_error(f"Error ocurred when writing matches to findings .txt file: {searched_file_name} \n{str(e)}")
 
@@ -181,7 +179,7 @@ def write_file_with_match_to_zip(file_data, file_name, output_file_name):
         log_error(f"Error ocurred when appending zip archive with file: {file_name} \n{str(e)}")
 
 
-def create_regex_and_output_file_lists():
+def create_regex_and_output_txt_file_collections():
     definition_files = [os.path.join(DEFINITIONS_DIRECTORY, f) for f in os.listdir(DEFINITIONS_DIRECTORY) if f.endswith('.txt')]
     for definition_file in definition_files:
         with open(definition_file, 'r', encoding='utf-8') as df:
@@ -192,15 +190,16 @@ def create_regex_and_output_file_lists():
             except re.error:
                 log_error(f"Invalid regular expression found in {definition_file}")
                 continue
-            OUTPUT_TXT_FILES_LIST.append(f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt")
+            output_txt_file = f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt"
+            TXT_FILES_DICT[output_txt_file] = ''
     
-    if not OUTPUT_TXT_FILES_LIST:
+    if not TXT_FILES_DICT:
         log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
         sys.exit()
 
 
 def initialize_output_data():
-    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, OUTPUT_TXT_FILES_LIST):
+    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, TXT_FILES_DICT):
         full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
         with open(full_txt_path, 'a', encoding='utf-8') as findings_txt_file:
             timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
@@ -276,8 +275,8 @@ def close_txt_files():
 
 def close_zip_files():
     with ZIP_FILES_DICT_LOCK:
-        for zip_file_dict in ZIP_FILES_DICT.values():
-            zip_file = zip_file_dict['zip_file']
+        for zip_file_values in ZIP_FILES_DICT.values():
+            zip_file = zip_file_values['zip_file']
             zip_file.close()
 
 
@@ -296,7 +295,7 @@ if __name__ == '__main__':
     create_output_directory()
     initialize_logging_to_file(FINDINGS_OUTPUT_PATH)
     logging.info(f"Findings output directory created: {FINDINGS_OUTPUT_PATH}")
-    create_regex_and_output_file_lists()
+    create_regex_and_output_txt_file_collections()
     initialize_output_data()
     iterate_through_gz_files(ARCHIVES_DIRECTORY)
     logging.info(f"Finished - results output to {FINDINGS_OUTPUT_PATH}")
