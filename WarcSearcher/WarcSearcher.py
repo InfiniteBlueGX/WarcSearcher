@@ -9,9 +9,10 @@ import re
 import sys
 import zipfile
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from io import BytesIO
-from threading import Lock
+#from threading import Lock
+from multiprocessing import Pool, Lock
 
 import py7zr
 import rarfile
@@ -48,7 +49,7 @@ def iterate_through_gz_files(gz_directory_path):
         log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
 
-    with ThreadPoolExecutor(MAX_THREADS) as executor:
+    with ProcessPoolExecutor(3) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
 
         for future in as_completed(tasks):
