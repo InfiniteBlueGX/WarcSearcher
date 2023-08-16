@@ -121,7 +121,7 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
 
 
 def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
-    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, TXT_FILES_DICT):
+    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, TXT_FILES_DICT, strict=True):
         matches_list_name = [match for match in re.finditer(pattern, searched_file_name)]
         if search_name_only:    
             matches_list_contents = []
@@ -196,7 +196,7 @@ def create_regex_and_output_txt_file_collections():
 
 
 def initialize_output_data():
-    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, TXT_FILES_DICT):
+    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, TXT_FILES_DICT, strict=True):
         full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
         with open(full_txt_path, 'a', encoding='utf-8') as findings_txt_file:
             timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
