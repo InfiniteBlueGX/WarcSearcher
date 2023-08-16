@@ -176,7 +176,7 @@ def write_file_with_match_to_zip(file_data, file_name, output_file_name):
 
 
 def create_regex_and_output_txt_file_collections():
-    definition_files = [os.path.join(DEFINITIONS_DIRECTORY, f) for f in os.listdir(DEFINITIONS_DIRECTORY) if f.endswith('.txt')]
+    definition_files = glob.glob(DEFINITIONS_DIRECTORY + '/*.txt')
     for definition_file in definition_files:
         with open(definition_file, 'r', encoding='utf-8') as df:
             raw_regex = df.read().strip()
