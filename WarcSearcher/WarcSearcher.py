@@ -136,14 +136,10 @@ def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
 
 def write_matches_to_findings_file(searched_file_name, output_txt_file, searching_name_only, root_gz_file, matches_name, matches_contents):
     try:
-        full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
         filtered_matches_name, unique_matches_set_name = filter_and_extract_unique(matches_name)
         filtered_matches_contents, unique_matches_set_contents = filter_and_extract_unique(matches_contents)
 
-        with TXT_FILES_DICT_LOCK:
-            TXT_FILES_DICT[output_txt_file] = open(full_txt_path, 'a', encoding='utf-8')
-
-        with TXT_LOCKS[full_txt_path]:
+        with TXT_LOCKS[output_txt_file]:
             TXT_FILES_DICT[output_txt_file].write(f'[Archive: {root_gz_file}]\n')
             TXT_FILES_DICT[output_txt_file].write(f'[File: {searched_file_name}]\n\n')
             if searching_name_only:
@@ -191,7 +187,8 @@ def create_regex_and_output_txt_file_collections():
                 log_error(f"Invalid regular expression found in {definition_file}")
                 continue
             output_txt_file = f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt"
-            TXT_FILES_DICT[output_txt_file] = ''
+            full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
+            TXT_FILES_DICT[output_txt_file] = open(full_txt_path, 'a', encoding='utf-8')
     
     if not TXT_FILES_DICT:
         log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
