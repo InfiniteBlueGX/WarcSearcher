@@ -1,5 +1,5 @@
 # WarcSearcher
-A Python tool that performs regex keyword searches iteratively over the contents of local warc.gz files. Uses Python 3.11.4.
+A Python tool that performs regex keyword searches iteratively over the contents of local warc.gz files. Uses Python 3.11.4. (Currently in active development)
 
 Known informally as the "Media Un-Loser", this tool is designed to facilitate the parsing of large web archives ([WARC files](https://iipc.github.io/warc-specifications/specifications/warc-format/warc-1.1/)) with a variety of search criteria, primarily in the context of lost media searches. It also aims to package the results for sharing in collaborative online settings.
 
