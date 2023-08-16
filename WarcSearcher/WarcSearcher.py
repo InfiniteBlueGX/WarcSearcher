@@ -73,7 +73,7 @@ def open_warc_gz_file(gz_file_path):
                 file_name = record.headers['WARC-Target-URI']
                 search_function(file_content, file_name, gz_file_path, 0)
                     
-                if records_searched > 0 and records_searched % 200 == 0:
+                if records_searched % 200 == 0:
                     logging.info(f"Searched {records_searched} response records in {gz_file_path}")
     except Exception as e:
         log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
@@ -186,9 +186,9 @@ def create_regex_and_output_txt_file_collections():
             except re.error:
                 log_error(f"Invalid regular expression found in {definition_file}")
                 continue
-            output_txt_file = f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt"
-            full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
-            TXT_FILES_DICT[output_txt_file] = open(full_txt_path, 'a', encoding='utf-8')
+        output_txt_file = f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt"
+        full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
+        TXT_FILES_DICT[output_txt_file] = open(full_txt_path, 'a', encoding='utf-8')
     
     if not TXT_FILES_DICT:
         log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
