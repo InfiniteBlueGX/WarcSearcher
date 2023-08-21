@@ -8,10 +8,10 @@ import os
 import re
 import sys
 import zipfile
-from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
+                                as_completed)
 from io import BytesIO
-from threading import Lock
+from multiprocessing import Manager
 
 import py7zr
 import rarfile
@@ -28,17 +28,35 @@ REGEX_PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
 MAX_THREADS = 4
 
+RECORD_QUEUES = {}
 TXT_FILES_DICT = {}
 ZIP_FILES_DICT = {}
-TXT_FILES_DICT_LOCK = Lock()
-ZIP_FILES_DICT_LOCK = Lock()
-TXT_LOCKS = defaultdict(Lock)
-ZIP_LOCKS = defaultdict(Lock)
 
-logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+
+def begin_search():
+    manager = Manager()
+    global RECORD_QUEUES
+    RECORD_QUEUES = {TXT_FILES_DICT[output_txt_file]: manager.Queue() for output_txt_file in TXT_FILES_DICT}
+
+    definitions = zip(TXT_FILES_DICT, REGEX_PATTERNS_LIST)
+
+    with ProcessPoolExecutor() as executor:
+        subprocess_futures = []
+        for output_txt_file, regex in definitions:
+            subprocess_futures.append(executor.submit(find_and_write_matches_subprocess, 
+                                                  RECORD_QUEUES[TXT_FILES_DICT[output_txt_file]], 
+                                                  regex, 
+                                                  output_txt_file))
+
+        iterate_through_gz_files(ARCHIVES_DIRECTORY)           
+
+        for output_txt_file in TXT_FILES_DICT:
+            RECORD_QUEUES[TXT_FILES_DICT[output_txt_file]].put(None)
+
+        logging.info("Waiting on subprocesses to finish searching - This may take a while...")
+
+        for future in subprocess_futures:
+            future.result() 
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -48,7 +66,7 @@ def iterate_through_gz_files(gz_directory_path):
         log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
 
-    with ThreadPoolExecutor(MAX_THREADS) as executor:
+    with ThreadPoolExecutor() as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
 
         for future in as_completed(tasks):
@@ -69,17 +87,17 @@ def open_warc_gz_file(gz_file_path):
         for record in records:
             if record.headers['WARC-Type'] == 'response':
                 records_searched += 1
-                file_content = record.reader.read()
-                file_name = record.headers['WARC-Target-URI']
-                search_function(file_content, file_name, gz_file_path, 0)
+                record_content = record.reader.read()
+                record_name = record.headers['WARC-Target-URI']
+                search_function(record_content, record_name, gz_file_path, 0)
                     
                 if records_searched % 200 == 0:
-                    logging.info(f"Searched {records_searched} response records in {gz_file_path}")
+                    logging.info(f"Processed {records_searched} response records from {gz_file_path}")
     except Exception as e:
         log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
 
-def search_function(file_data, searched_file_name, root_gz_file, recursion_depth):
+def search_function(file_data, file_name, root_gz_file, recursion_depth):
     if recursion_depth == MAX_RECURSION_DEPTH:
         log_error(f"Error: Maximum recursion depth of {MAX_RECURSION_DEPTH} was hit - terminating to avoid infinite looping.")
         sys.exit()
@@ -105,74 +123,26 @@ def search_function(file_data, searched_file_name, root_gz_file, recursion_depth
                     with rawr_file.open(file_name, mode='r') as nested_file:
                         search_function(nested_file.read(), nested_file.name, root_gz_file, recursion_depth)
         except Exception:
-            log_error(f"Error processing nested .rar archive '{searched_file_name}' in: {root_gz_file}\n\tWinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the folder containing the WinRar executable is added to your System Path environment variable.")
+            log_error(f"Error processing nested .rar archive '{file_name}' in: {root_gz_file}\n\tWinRar is required to process .rar archives. Ensure that WinRar is installed and the path to the folder containing the WinRar executable is added to your System Path environment variable.")
 
-    elif is_gz_file(file_data, searched_file_name):
+    elif is_gz_file(file_data, file_name):
         with gzip.open(BytesIO(file_data), 'rb') as nested_file:
             nested_file_name = extract_nested_gz_filename(file_data[:200])
             search_function(nested_file.read(), nested_file_name, root_gz_file, recursion_depth)                    
 
     elif is_file_binary(file_data):
         # If the file is binary data (image, video, audio, etc), only search the file name, since searching the binary data is wasted effort
-        search_file(file_data, searched_file_name, root_gz_file, True)
-        
+        record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=None)
+        submit_record_for_searching(record_obj)
+ 
     else:
-        search_file(file_data, searched_file_name, root_gz_file, False)
+        record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=file_data)
+        submit_record_for_searching(record_obj)
 
 
-def search_file(file_data, searched_file_name, root_gz_file, search_name_only):
-    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, TXT_FILES_DICT, strict=True):
-        matches_list_name = [match for match in re.finditer(pattern, searched_file_name)]
-        if search_name_only:    
-            matches_list_contents = []
-        else:
-            matches_list_contents = [match for match in re.finditer(pattern, file_data.decode('utf-8', 'ignore'))]
-
-        if matches_list_name or matches_list_contents:
-            write_matches_to_findings_file(searched_file_name, output_txt_file, search_name_only, root_gz_file, matches_list_name, matches_list_contents)
-            if ZIP_FILES_WITH_MATCHES:  
-                write_file_with_match_to_zip(file_data, searched_file_name, os.path.splitext(output_txt_file)[0])
-
-
-def write_matches_to_findings_file(searched_file_name, output_txt_file, searching_name_only, root_gz_file, matches_name, matches_contents):
-    try:
-        filtered_matches_name, unique_matches_set_name = filter_and_extract_unique(matches_name)
-        filtered_matches_contents, unique_matches_set_contents = filter_and_extract_unique(matches_contents)
-
-        with TXT_LOCKS[output_txt_file]:
-            TXT_FILES_DICT[output_txt_file].write(f'[Archive: {root_gz_file}]\n')
-            TXT_FILES_DICT[output_txt_file].write(f'[File: {searched_file_name}]\n\n')
-            if searching_name_only:
-                write_matches(TXT_FILES_DICT[output_txt_file], filtered_matches_name, unique_matches_set_name, 'file name')
-            else:
-                if filtered_matches_name:
-                    write_matches(TXT_FILES_DICT[output_txt_file], filtered_matches_name, unique_matches_set_name, 'file name')
-                write_matches(TXT_FILES_DICT[output_txt_file], filtered_matches_contents, unique_matches_set_contents, 'file contents')
-            TXT_FILES_DICT[output_txt_file].write('___________________________________________________________________\n\n')
-    except Exception as e:
-        log_error(f"Error ocurred when writing matches to findings .txt file: {searched_file_name} \n{str(e)}")
-
-
-def write_file_with_match_to_zip(file_data, file_name, output_file_name):
-    try:
-        full_zip_path = os.path.join(FINDINGS_OUTPUT_PATH, (f"{output_file_name}.zip"))
-        
-        with ZIP_FILES_DICT_LOCK:
-            if full_zip_path not in ZIP_FILES_DICT:
-                zip_file = zipfile.ZipFile(full_zip_path, 'a', zipfile.ZIP_DEFLATED)
-                ZIP_FILES_DICT[full_zip_path] = {
-                    'zip_file': zip_file,
-                    'names': set(zip_file.namelist())
-                }
-
-        with ZIP_LOCKS[full_zip_path]:
-            file_name_reformatted = reformat_file_name(file_name)
-            if file_name_reformatted not in ZIP_FILES_DICT[full_zip_path]['names']:
-                ZIP_FILES_DICT[full_zip_path]['zip_file'].writestr(file_name_reformatted, file_data)
-                ZIP_FILES_DICT[full_zip_path]['names'].add(file_name_reformatted)
-
-    except Exception as e:
-        log_error(f"Error ocurred when appending zip archive with file: {file_name} \n{str(e)}")
+def submit_record_for_searching(record_obj: RecordData):
+    for output_txt_file in TXT_FILES_DICT:
+        RECORD_QUEUES[TXT_FILES_DICT[output_txt_file]].put(record_obj) 
 
 
 def create_regex_and_output_txt_file_collections():
@@ -188,22 +158,11 @@ def create_regex_and_output_txt_file_collections():
                 continue
         output_txt_file = f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt"
         full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
-        TXT_FILES_DICT[output_txt_file] = open(full_txt_path, 'a', encoding='utf-8')
+        TXT_FILES_DICT[full_txt_path] = full_txt_path
     
-    if not TXT_FILES_DICT:
+    if not REGEX_PATTERNS_LIST:
         log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
         sys.exit()
-
-
-def initialize_output_data():
-    for pattern, output_txt_file in zip(REGEX_PATTERNS_LIST, TXT_FILES_DICT, strict=True):
-        full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
-        with open(full_txt_path, 'a', encoding='utf-8') as findings_txt_file:
-            timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
-            findings_txt_file.write(f'[{output_txt_file}]\n')
-            findings_txt_file.write(f'[Created: {timestamp}]\n\n')
-            findings_txt_file.write(f'[Regex used]\n{pattern.pattern}\n\n')
-            findings_txt_file.write('___________________________________________________________________\n\n')
 
 
 def create_output_directory():
@@ -264,22 +223,8 @@ def read_globals_from_config():
         sys.exit()
 
 
-def close_txt_files():
-    with TXT_FILES_DICT_LOCK:
-        for txt_file in TXT_FILES_DICT.values():
-            txt_file.close()
-
-
-def close_zip_files():
-    with ZIP_FILES_DICT_LOCK:
-        for zip_file_values in ZIP_FILES_DICT.values():
-            zip_file = zip_file_values['zip_file']
-            zip_file.close()
-
-
 def finish():
-    close_txt_files()
-    close_zip_files()
+    # close_zip_files()
     report_errors_and_warnings()
     input("Press Enter to exit...")
 
@@ -291,8 +236,8 @@ if __name__ == '__main__':
     read_arguments()
     create_output_directory()
     initialize_logging_to_file(FINDINGS_OUTPUT_PATH)
-    logging.info(f"Findings output directory created: {FINDINGS_OUTPUT_PATH}")
+    logging.info(f"Findings output directory created: {FINDINGS_OUTPUT_PATH}") 
     create_regex_and_output_txt_file_collections()
-    initialize_output_data()
-    iterate_through_gz_files(ARCHIVES_DIRECTORY)
+    
+    begin_search()
     logging.info(f"Finished - results output to {FINDINGS_OUTPUT_PATH}")
