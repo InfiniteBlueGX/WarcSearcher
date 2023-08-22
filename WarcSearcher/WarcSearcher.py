@@ -53,7 +53,7 @@ def begin_search():
         for output_txt_file in TXT_FILES_DICT:
             RECORD_QUEUES[TXT_FILES_DICT[output_txt_file]].put(None)
 
-        logging.info("Waiting on subprocesses to finish searching - This may take a while...")
+        logging.info("Waiting on subprocesses to finish searching - This may take a while, please wait...")
 
         for future in subprocess_futures:
             future.result() 
@@ -92,7 +92,7 @@ def open_warc_gz_file(gz_file_path):
                 search_function(record_content, record_name, gz_file_path, 0)
                     
                 if records_searched % 200 == 0:
-                    logging.info(f"Processed {records_searched} response records from {gz_file_path}")
+                    logging.info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
     except Exception as e:
         log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
