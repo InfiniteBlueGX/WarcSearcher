@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import sys
+import time
 import zipfile
 from io import BytesIO, StringIO
 
@@ -54,6 +55,7 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks):
 
             if matches_name or matches_contents:
                 write_matches_to_txt_output_buffer(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
+
 
 def initialize_txt_output_file(output_file, txt_file_path, regex):
     timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
@@ -145,6 +147,12 @@ def get_total_memory_usage(process):
         resident_set_size_memory += mem_info.rss
 
     return resident_set_size_memory
+
+
+def monitor_remaining_queue_items(queue, stop_event):
+    while not stop_event.is_set():
+        logging.info(f"Remaining items to search: {queue.qsize()}")
+        time.sleep(5)
 
 
 def initialize_logging_to_file(output_directory):

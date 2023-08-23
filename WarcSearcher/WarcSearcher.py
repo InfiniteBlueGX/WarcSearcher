@@ -1,5 +1,4 @@
 import atexit
-import concurrent.futures
 import configparser
 import datetime
 import glob
@@ -8,8 +7,11 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 import zipfile
+from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
+                                as_completed, wait)
 from io import BytesIO
 from multiprocessing import Manager
 
@@ -31,7 +33,7 @@ MAX_ARCHIVE_READ_THREADS = None
 MAX_SEARCH_PROCESSES = None
 
 TXT_FILES_DICT = {}
-ZIP_FILES_DICT = {}
+#ZIP_FILES_DICT = {}
 SEARCH_QUEUE = None
 items = 0
 
@@ -48,22 +50,25 @@ def begin_search():
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
-    with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES) as executor:
+    with ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES) as executor:
         futures = [executor.submit(find_and_write_matches_subprocess, SEARCH_QUEUE, definitions, txt_locks) for _ in range(4)]
 
         iterate_through_gz_files(ARCHIVES_DIRECTORY)
 
-        logging.info("Waiting on subprocesses to finish searching - This may take a while, please wait...")
-
         for _ in range(4):
             SEARCH_QUEUE.put(None)
 
-        while not SEARCH_QUEUE.empty():
-            logging.info(f"Remaining items to search: {SEARCH_QUEUE.qsize()}")
-            time.sleep(5)
+        logging.info("Waiting on subprocesses to finish searching - This may take a while, please wait...")
 
-        concurrent.futures.wait(futures)
+        stop_event = threading.Event()
+        monitoring_thread = threading.Thread(target=monitor_remaining_queue_items, args=(SEARCH_QUEUE, stop_event))
+        monitoring_thread.start()
 
+        wait(futures)
+
+        stop_event.set()
+        monitoring_thread.join()
+        
     global items
     print(f"Total items - {items}")
 
@@ -75,10 +80,10 @@ def iterate_through_gz_files(gz_directory_path):
         log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_ARCHIVE_READ_THREADS) as executor:
+    with ThreadPoolExecutor(max_workers=MAX_ARCHIVE_READ_THREADS) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
 
-        for future in concurrent.futures.as_completed(tasks):
+        for future in as_completed(tasks):
             future.result()
 
 
