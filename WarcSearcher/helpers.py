@@ -69,19 +69,18 @@ def write_matches_to_txt_output_buffer(output_buffer, matches_list_name, matches
     output_buffer.write(f'[Archive: {root_gz_file}]\n')
     output_buffer.write(f'[File: {containing_file}]\n\n')
 
-    if matches_list_name:
-        unique_matches_set_name = [match for match in set(matches_list_name)]
-        output_buffer.write(f'[Matches found in file name: {len(matches_list_name)} ({len(matches_list_name)-len(unique_matches_set_name)} duplicates omitted)]\n')
-        for i, match in enumerate(unique_matches_set_name, start=1):
-            output_buffer.write(f'[Match #{i} in file name]\n\n"{match}"\n\n')
-    
-    if matches_list_contents:
-        unique_matches_set_contents = [match for match in set(matches_list_contents)]
-        output_buffer.write(f'[Matches found in file contents: {len(matches_list_contents)} ({len(matches_list_contents)-len(unique_matches_set_contents)} duplicates omitted)]\n')
-        for i, match in enumerate(unique_matches_set_contents, start=1):
-            output_buffer.write(f'[Match #{i} in file contents]\n\n"{match}"\n\n')
+    write_matches(output_buffer, matches_list_name, 'file name')
+    write_matches(output_buffer, matches_list_contents, 'file contents')
 
     output_buffer.write('___________________________________________________________________\n\n')
+
+
+def write_matches(output_buffer, matches_list, match_type):
+    if matches_list:
+        unique_matches_set = [match for match in set(matches_list)]
+        output_buffer.write(f'[Matches found in {match_type}: {len(matches_list)} ({len(matches_list)-len(unique_matches_set)} duplicates omitted)]\n')
+        for i, match in enumerate(unique_matches_set, start=1):
+            output_buffer.write(f'[Match #{i} in {match_type}]\n\n"{match}"\n\n')
 
 
 def find_regex_matches(input_string, regex_pattern):
