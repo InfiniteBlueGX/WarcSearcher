@@ -22,7 +22,6 @@ class RecordData:
 
 def find_and_write_matches_subprocess(record_queue, definitions, txt_locks):
     print(f"Starting search process #{os.getpid()}")
-    count = 0
 
     txt_buffers = {}
     for txt_path, regex in definitions:
@@ -35,11 +34,9 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks):
                 buffer_contents = txt_buffers[txt_path].getvalue()
                 with txt_locks[txt_path]:
                     with open(txt_path, "a", encoding='utf-8') as output_file:
-                        #print(f"Should be writing to {txt_path}")
                         output_file.write(buffer_contents)
-            print(f"Ending search process #{os.getpid()} - items processed: {count}")
+            print(f"Ending search process #{os.getpid()}")
             break
-        count +=1
 
         for txt_path, regex in definitions:
             matches_name = []

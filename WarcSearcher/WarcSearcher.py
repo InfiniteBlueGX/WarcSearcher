@@ -36,7 +36,6 @@ MAX_PROCESS_MEMORY = None
 TXT_FILES_DICT = {}
 #ZIP_FILES_DICT = {}
 SEARCH_QUEUE = None
-items = 0
 
 def begin_search():
     manager = Manager()
@@ -69,9 +68,6 @@ def begin_search():
 
         stop_event.set()
         monitoring_thread.join()
-        
-    global items
-    print(f"Total items - {items}")
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -153,15 +149,11 @@ def search_function(file_data, file_name, root_gz_file, recursion_depth):
     elif is_file_binary(file_data):
         # If the file is binary data (image, video, audio, etc), only search the file name, since searching the binary data is wasted effort
         record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=None)
-        global SEARCH_QUEUE
         SEARCH_QUEUE.put(record_obj)
-        global items
-        items += 1
 
     else:
         record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=file_data)
         SEARCH_QUEUE.put(record_obj)
-        items += 1
 
 
 def create_regex_and_output_txt_file_collections():
