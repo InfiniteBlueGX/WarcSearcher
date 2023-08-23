@@ -1,4 +1,5 @@
 import atexit
+import concurrent.futures
 import configparser
 import datetime
 import glob
@@ -8,8 +9,6 @@ import os
 import re
 import sys
 import zipfile
-from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
-                                as_completed)
 from io import BytesIO
 from multiprocessing import Manager
 
@@ -28,35 +27,38 @@ REGEX_PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
 MAX_THREADS = 4
 
-RECORD_QUEUES = {}
 TXT_FILES_DICT = {}
 ZIP_FILES_DICT = {}
-
+SEARCH_QUEUE = None
+items = 0
 
 def begin_search():
     manager = Manager()
-    global RECORD_QUEUES
-    RECORD_QUEUES = {TXT_FILES_DICT[output_txt_file]: manager.Queue() for output_txt_file in TXT_FILES_DICT}
 
-    definitions = zip(TXT_FILES_DICT, REGEX_PATTERNS_LIST)
+    txt_locks = manager.dict()
+    definitions = list(zip(TXT_FILES_DICT, REGEX_PATTERNS_LIST))
 
-    with ProcessPoolExecutor() as executor:
-        subprocess_futures = []
-        for output_txt_file, regex in definitions:
-            subprocess_futures.append(executor.submit(find_and_write_matches_subprocess, 
-                                                  RECORD_QUEUES[TXT_FILES_DICT[output_txt_file]], 
-                                                  regex, 
-                                                  output_txt_file))
+    for txt_path, regex in definitions:
+        with open(txt_path, "a", encoding='utf-8') as output_file:
+            initialize_txt_output_file(output_file, txt_path, regex)
+        txt_locks[txt_path] = manager.Lock()
 
-        iterate_through_gz_files(ARCHIVES_DIRECTORY)           
+    global SEARCH_QUEUE
+    SEARCH_QUEUE = manager.Queue()
+    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(find_and_write_matches_subprocess, SEARCH_QUEUE, definitions, txt_locks) for _ in range(4)]
 
-        for output_txt_file in TXT_FILES_DICT:
-            RECORD_QUEUES[TXT_FILES_DICT[output_txt_file]].put(None)
+        iterate_through_gz_files(ARCHIVES_DIRECTORY)
 
         logging.info("Waiting on subprocesses to finish searching - This may take a while, please wait...")
 
-        for future in subprocess_futures:
-            future.result() 
+        for _ in range(4):
+            SEARCH_QUEUE.put(None)
+
+        concurrent.futures.wait(futures)
+
+    global items
+    print(f"Total items - {items}")
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -66,23 +68,23 @@ def iterate_through_gz_files(gz_directory_path):
         log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
 
-    with ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
 
-        for future in as_completed(tasks):
+        for future in concurrent.futures.as_completed(tasks):
             future.result()
 
 
 def open_warc_gz_file(gz_file_path):
     gz_file_stream = GZipStream(FileStream(gz_file_path, 'rb'))
-    logging.info(f"Beginning to process {gz_file_path}")     
+    logging.info(f"Beginning to process {gz_file_path}")
 
     try:
         records = ArchiveIterator(gz_file_stream, strict_mode=False)
         if not any(records):
             log_warning(f"No WARC records found in {gz_file_path}")
             return
-        
+
         records_searched = 0
         for record in records:
             if record.headers['WARC-Type'] == 'response':
@@ -90,7 +92,7 @@ def open_warc_gz_file(gz_file_path):
                 record_content = record.reader.read()
                 record_name = record.headers['WARC-Target-URI']
                 search_function(record_content, record_name, gz_file_path, 0)
-                    
+
                 if records_searched % 200 == 0:
                     logging.info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
     except Exception as e:
@@ -101,7 +103,7 @@ def search_function(file_data, file_name, root_gz_file, recursion_depth):
     if recursion_depth == MAX_RECURSION_DEPTH:
         log_error(f"Error: Maximum recursion depth of {MAX_RECURSION_DEPTH} was hit - terminating to avoid infinite looping.")
         sys.exit()
-    
+
     recursion_depth += 1
 
     if is_zip_file(file_data):
@@ -128,21 +130,20 @@ def search_function(file_data, file_name, root_gz_file, recursion_depth):
     elif is_gz_file(file_data, file_name):
         with gzip.open(BytesIO(file_data), 'rb') as nested_file:
             nested_file_name = extract_nested_gz_filename(file_data[:200])
-            search_function(nested_file.read(), nested_file_name, root_gz_file, recursion_depth)                    
+            search_function(nested_file.read(), nested_file_name, root_gz_file, recursion_depth)
 
     elif is_file_binary(file_data):
         # If the file is binary data (image, video, audio, etc), only search the file name, since searching the binary data is wasted effort
         record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=None)
-        submit_record_for_searching(record_obj)
- 
+        global SEARCH_QUEUE
+        SEARCH_QUEUE.put(record_obj)
+        global items
+        items += 1
+
     else:
         record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=file_data)
-        submit_record_for_searching(record_obj)
-
-
-def submit_record_for_searching(record_obj: RecordData):
-    for output_txt_file in TXT_FILES_DICT:
-        RECORD_QUEUES[TXT_FILES_DICT[output_txt_file]].put(record_obj) 
+        SEARCH_QUEUE.put(record_obj)
+        items += 1
 
 
 def create_regex_and_output_txt_file_collections():
@@ -159,7 +160,7 @@ def create_regex_and_output_txt_file_collections():
         output_txt_file = f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt"
         full_txt_path = os.path.join(FINDINGS_OUTPUT_PATH, output_txt_file)
         TXT_FILES_DICT[full_txt_path] = full_txt_path
-    
+
     if not REGEX_PATTERNS_LIST:
         log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
         sys.exit()
@@ -195,7 +196,7 @@ def validate_input_directories():
         sys.exit()
 
 
-def read_globals_from_config():   
+def read_globals_from_config():
     if not os.path.isfile('config.ini'):
         log_error("config.ini file does not exist in the working directory.")
         sys.exit()
@@ -236,8 +237,8 @@ if __name__ == '__main__':
     read_arguments()
     create_output_directory()
     initialize_logging_to_file(FINDINGS_OUTPUT_PATH)
-    logging.info(f"Findings output directory created: {FINDINGS_OUTPUT_PATH}") 
+    logging.info(f"Findings output directory created: {FINDINGS_OUTPUT_PATH}")
     create_regex_and_output_txt_file_collections()
-    
+
     begin_search()
     logging.info(f"Finished - results output to {FINDINGS_OUTPUT_PATH}")

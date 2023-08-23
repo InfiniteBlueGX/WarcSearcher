@@ -19,39 +19,49 @@ class RecordData:
     self.contents = contents
 
 
-def find_and_write_matches_subprocess(record_queue, regex, file_path):
-    output_buffer = StringIO()
-    initialize_txt_output_buffer(output_buffer, file_path, regex)
+def find_and_write_matches_subprocess(record_queue, definitions, txt_locks):
+    print(f"Starting search process #{os.getpid()}")
+    count = 0
+
+    txt_buffers = {}
+    for txt_path, regex in definitions:
+        txt_buffers[txt_path] = StringIO()
 
     while True:
         record_obj: RecordData = record_queue.get()
         if record_obj == None:
-            # When there are no more records to process, write the buffer to the file and end the subprocess loop
-            with open(file_path, "a", encoding='utf-8') as output_file:
-                output_file.write(output_buffer.getvalue())
+            for txt_path, regex in definitions:
+                buffer_contents = txt_buffers[txt_path].getvalue()
+                with txt_locks[txt_path]:
+                    with open(txt_path, "a", encoding='utf-8') as output_file:
+                        #print(f"Should be writing to {txt_path}")
+                        output_file.write(buffer_contents)
+            print(f"Ending search process #{os.getpid()} - items processed: {count}")
             break
+        count +=1
 
-        matches_name = []
-        matches_contents = []
+        for txt_path, regex in definitions:
+            matches_name = []
+            matches_contents = []
 
-        matches_name = find_regex_matches(record_obj.name, regex)
+            matches_name = find_regex_matches(record_obj.name, regex)
 
-        if record_obj.contents == None:
-            # searching file name only
-            matches_contents = ''
-        else:    
-            matches_contents = find_regex_matches(record_obj.contents.decode('utf-8', 'ignore'), regex)
+            if record_obj.contents == None:
+                # searching file name only
+                matches_contents = ''
+            else:    
+                matches_contents = find_regex_matches(record_obj.contents.decode('utf-8', 'ignore'), regex)
 
-        if matches_name or matches_contents:
-            write_matches_to_txt_output_buffer(output_buffer, matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
+            if matches_name or matches_contents:
+                write_matches_to_txt_output_buffer(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
 
 
-def initialize_txt_output_buffer(output_buffer, txt_file_path, regex):
+def initialize_txt_output_file(output_file, txt_file_path, regex):
     timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
-    output_buffer.write(f'[{os.path.basename(txt_file_path)}]\n')
-    output_buffer.write(f'[Created: {timestamp}]\n\n')
-    output_buffer.write(f'[Regex used]\n{regex.pattern}\n\n')
-    output_buffer.write('___________________________________________________________________\n\n')
+    output_file.write(f'[{os.path.basename(txt_file_path)}]\n')
+    output_file.write(f'[Created: {timestamp}]\n\n')
+    output_file.write(f'[Regex used]\n{regex.pattern}\n\n')
+    output_file.write('___________________________________________________________________\n\n')
 
 
 def write_matches_to_txt_output_buffer(output_buffer, matches_list_name, matches_list_contents, root_gz_file, containing_file):
@@ -71,7 +81,6 @@ def write_matches_to_txt_output_buffer(output_buffer, matches_list_name, matches
             output_buffer.write(f'[Match #{i} in file contents]\n\n"{match}"\n\n')
 
     output_buffer.write('___________________________________________________________________\n\n')
-    return output_buffer.getvalue()
 
 
 def find_regex_matches(input_string, regex_pattern):
