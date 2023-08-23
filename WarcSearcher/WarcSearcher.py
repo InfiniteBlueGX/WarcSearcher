@@ -27,7 +27,8 @@ FINDINGS_OUTPUT_PATH = ''
 ZIP_FILES_WITH_MATCHES = False
 REGEX_PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
-MAX_THREADS = 4
+MAX_ARCHIVE_READ_THREADS = None
+MAX_SEARCH_PROCESSES = None
 
 TXT_FILES_DICT = {}
 ZIP_FILES_DICT = {}
@@ -47,7 +48,7 @@ def begin_search():
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
-    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES) as executor:
         futures = [executor.submit(find_and_write_matches_subprocess, SEARCH_QUEUE, definitions, txt_locks) for _ in range(4)]
 
         iterate_through_gz_files(ARCHIVES_DIRECTORY)
@@ -74,7 +75,7 @@ def iterate_through_gz_files(gz_directory_path):
         log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_ARCHIVE_READ_THREADS) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
 
         for future in concurrent.futures.as_completed(tasks):
@@ -228,8 +229,14 @@ def read_globals_from_config():
         global ZIP_FILES_WITH_MATCHES
         ZIP_FILES_WITH_MATCHES = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
 
-        global MAX_THREADS
-        MAX_THREADS = parser.getint('OPTIONAL', 'max_threads')
+        global MAX_ARCHIVE_READ_THREADS
+        threads_item = parser.get('OPTIONAL', 'max_archive_read_threads').lower()
+        MAX_ARCHIVE_READ_THREADS = min(32, os.cpu_count() + 4) if threads_item == "none" else int(threads_item)
+
+        global MAX_SEARCH_PROCESSES
+        processes_item = parser.get('OPTIONAL', 'max_search_processes').lower()
+        MAX_SEARCH_PROCESSES = os.cpu_count() if processes_item == "none" else int(processes_item)
+        
     except Exception as e:
         log_error(f"Error reading the contents of the config.ini file: \n{e}")
         sys.exit()

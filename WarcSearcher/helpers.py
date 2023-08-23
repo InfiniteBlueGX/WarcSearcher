@@ -55,7 +55,6 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks):
             if matches_name or matches_contents:
                 write_matches_to_txt_output_buffer(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
 
-
 def initialize_txt_output_file(output_file, txt_file_path, regex):
     timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
     output_file.write(f'[{os.path.basename(txt_file_path)}]\n')
@@ -134,6 +133,18 @@ def extract_nested_gz_filename(first_gz_file_bytes):
 def reformat_file_name(file_name):
     web_prefixes_removed = file_name.replace('http://', '').replace('https://', '').replace('www.', '')
     return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))
+
+
+def get_total_memory_usage(process):
+    mem_info = process.memory_info()
+    resident_set_size_memory = mem_info.rss
+
+    subprocesses = process.children(recursive=True)
+    for subprocess in subprocesses:
+        mem_info = subprocess.memory_info()
+        resident_set_size_memory += mem_info.rss
+
+    return resident_set_size_memory
 
 
 def initialize_logging_to_file(output_directory):
