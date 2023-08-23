@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import sys
+import time
 import zipfile
 from io import BytesIO
 from multiprocessing import Manager
@@ -54,6 +55,10 @@ def begin_search():
 
         for _ in range(4):
             SEARCH_QUEUE.put(None)
+
+        while not SEARCH_QUEUE.empty():
+            logging.info(f"Remaining items to search: {SEARCH_QUEUE.qsize()}")
+            time.sleep(5)
 
         concurrent.futures.wait(futures)
 
