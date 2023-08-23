@@ -254,6 +254,7 @@ def finish():
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     atexit.register(finish)
     read_globals_from_config()
     validate_input_directories()
@@ -264,4 +265,7 @@ if __name__ == '__main__':
     create_regex_and_output_txt_file_collections()
 
     begin_search()
-    logging.info(f"Finished - results output to {FINDINGS_OUTPUT_PATH}")
+    
+    execution_time = time.time() - start_time
+    minutes, seconds = divmod(execution_time, 60)
+    logging.info(f"Finished in {int(minutes)}m {round(seconds, 2)}s - results output to {FINDINGS_OUTPUT_PATH}")
