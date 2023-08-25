@@ -31,7 +31,7 @@ REGEX_PATTERNS_LIST = []
 MAX_RECURSION_DEPTH = 50
 MAX_ARCHIVE_READ_THREADS = None
 MAX_SEARCH_PROCESSES = None
-MAX_PROCESS_MEMORY = None
+TARGET_PROCESS_MEMORY = None
 
 TXT_FILES_DICT = {}
 #ZIP_FILES_DICT = {}
@@ -86,7 +86,7 @@ def iterate_through_gz_files(gz_directory_path):
 
 def open_warc_gz_file(gz_file_path):
     process = psutil.Process()
-    while get_total_memory_usage(process) > MAX_PROCESS_MEMORY:
+    while get_total_memory_usage(process) > TARGET_PROCESS_MEMORY:
         log_warning(f"Process memory is beyond maximum specified in config.ini. Will attempt to read the next WARC after 30 seconds to allow time to process the existing queue...")
         time.sleep(30)
 
@@ -235,9 +235,9 @@ def read_globals_from_config():
         processes_item = parser.get('OPTIONAL', 'max_concurrent_search_processes').lower()
         MAX_SEARCH_PROCESSES = os.cpu_count() if processes_item == "none" else int(processes_item)
 
-        global MAX_PROCESS_MEMORY
-        processes_item = parser.get('OPTIONAL', 'max_process_memory_bytes').lower()
-        MAX_PROCESS_MEMORY = 64000000000 if processes_item == "none" else int(processes_item)
+        global TARGET_PROCESS_MEMORY
+        processes_item = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
+        TARGET_PROCESS_MEMORY = 64000000000 if processes_item == "none" else int(processes_item)
         
     except Exception as e:
         log_error(f"Error reading the contents of the config.ini file: \n{e}")
