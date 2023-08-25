@@ -233,7 +233,7 @@ def read_globals_from_config():
 
         global MAX_SEARCH_PROCESSES
         processes_item = parser.get('OPTIONAL', 'max_concurrent_search_processes').lower()
-        MAX_SEARCH_PROCESSES = os.cpu_count() if processes_item == "none" else int(processes_item)
+        MAX_SEARCH_PROCESSES = os.cpu_count() - 1 if processes_item == "none" else int(processes_item) - 1
 
         global TARGET_PROCESS_MEMORY
         processes_item = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
