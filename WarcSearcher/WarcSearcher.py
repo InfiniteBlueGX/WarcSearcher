@@ -51,11 +51,11 @@ def begin_search():
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
     with ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES) as executor:
-        futures = [executor.submit(find_and_write_matches_subprocess, SEARCH_QUEUE, definitions, txt_locks) for _ in range(4)]
+        futures = [executor.submit(find_and_write_matches_subprocess, SEARCH_QUEUE, definitions, txt_locks) for _ in range(MAX_SEARCH_PROCESSES)]
 
         iterate_through_gz_files(ARCHIVES_DIRECTORY)
 
-        for _ in range(4):
+        for _ in range(MAX_SEARCH_PROCESSES):
             SEARCH_QUEUE.put(None)
 
         logging.info("Waiting on subprocesses to finish searching - This may take a while, please wait...")
