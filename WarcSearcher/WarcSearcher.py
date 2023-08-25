@@ -87,7 +87,7 @@ def iterate_through_gz_files(gz_directory_path):
 def open_warc_gz_file(gz_file_path):
     process = psutil.Process()
     while get_total_memory_usage(process) > TARGET_PROCESS_MEMORY:
-        log_warning(f"Process memory is beyond maximum specified in config.ini. Will attempt to read the next WARC after 30 seconds to allow time to process the existing queue...")
+        log_warning(f"Process memory is beyond target size specified in config.ini. Will attempt to read the next WARC after 30 seconds to allow time to process the existing queue...")
         time.sleep(30)
 
     gz_file_stream = GZipStream(FileStream(gz_file_path, 'rb'))
