@@ -50,8 +50,8 @@ def begin_search():
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
-    with ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES) as executor:
-        futures = [executor.submit(find_and_write_matches_subprocess, SEARCH_QUEUE, definitions, txt_locks) for _ in range(MAX_SEARCH_PROCESSES)]
+    with ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES - 1) as executor:
+        futures = [executor.submit(find_and_write_matches_subprocess, SEARCH_QUEUE, definitions, txt_locks) for _ in range(MAX_SEARCH_PROCESSES - 1)]
 
         iterate_through_gz_files(ARCHIVES_DIRECTORY)
 
@@ -60,10 +60,12 @@ def begin_search():
 
         logging.info("Waiting on subprocesses to finish searching - This may take a while, please wait...")
 
+        # With no more records to read from the WARCs, put the main process to work with searching and monitor the queue on a background thread
         stop_event = threading.Event()
         monitoring_thread = threading.Thread(target=monitor_remaining_queue_items, args=(SEARCH_QUEUE, stop_event))
         monitoring_thread.start()
 
+        find_and_write_matches_subprocess(SEARCH_QUEUE, definitions, txt_locks)
         wait(futures)
 
         stop_event.set()
@@ -233,7 +235,7 @@ def read_globals_from_config():
 
         global MAX_SEARCH_PROCESSES
         processes_item = parser.get('OPTIONAL', 'max_concurrent_search_processes').lower()
-        MAX_SEARCH_PROCESSES = os.cpu_count() - 1 if processes_item == "none" else int(processes_item) - 1
+        MAX_SEARCH_PROCESSES = os.cpu_count() if processes_item == "none" else int(processes_item)
 
         global TARGET_PROCESS_MEMORY
         processes_item = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
