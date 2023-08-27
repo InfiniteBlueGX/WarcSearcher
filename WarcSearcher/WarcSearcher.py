@@ -104,11 +104,6 @@ def iterate_through_gz_files(gz_directory_path):
 
 
 def open_warc_gz_file(gz_file_path):
-    process = psutil.Process()
-    while get_total_memory_usage(process) > TARGET_PROCESS_MEMORY:
-        log_warning(f"Process memory is beyond target size specified in config.ini. Will attempt to read the next WARC after 30 seconds to allow time to process the existing queue...")
-        time.sleep(30)
-
     gz_file_stream = GZipStream(FileStream(gz_file_path, 'rb'))
     logging.info(f"Beginning to process {gz_file_path}")
 
@@ -126,8 +121,12 @@ def open_warc_gz_file(gz_file_path):
                 record_name = record.headers['WARC-Target-URI']
                 search_function(record_content, record_name, gz_file_path, 0)
 
-                if records_searched % 200 == 0:
+                if records_searched % 1000 == 0:
                     logging.info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
+                    process = psutil.Process()
+                    while get_total_memory_usage(process) > TARGET_PROCESS_MEMORY:
+                        log_warning(f"Process memory is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
+                        time.sleep(10)
     except Exception as e:
         log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
