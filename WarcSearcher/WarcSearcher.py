@@ -6,6 +6,7 @@ import gzip
 import logging
 import os
 import re
+import shutil
 import sys
 import threading
 import time
@@ -27,14 +28,13 @@ ARCHIVES_DIRECTORY = ''
 DEFINITIONS_DIRECTORY = ''
 FINDINGS_OUTPUT_PATH = ''
 ZIP_FILES_WITH_MATCHES = False
-REGEX_PATTERNS_LIST = []
-MAX_RECURSION_DEPTH = 50
 MAX_ARCHIVE_READ_THREADS = None
 MAX_SEARCH_PROCESSES = None
 TARGET_PROCESS_MEMORY = None
 
+MAX_RECURSION_DEPTH = 50
+REGEX_PATTERNS_LIST = []
 TXT_FILES_DICT = {}
-#ZIP_FILES_DICT = {}
 SEARCH_QUEUE = None
 
 def begin_search():
@@ -50,26 +50,43 @@ def begin_search():
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
-    with ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES - 1) as executor:
-        futures = [executor.submit(find_and_write_matches_subprocess, SEARCH_QUEUE, definitions, txt_locks) for _ in range(MAX_SEARCH_PROCESSES - 1)]
+    with ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES-1) as executor:
+        futures = [executor.submit(find_and_write_matches_subprocess, 
+                                   SEARCH_QUEUE, 
+                                   definitions, 
+                                   txt_locks, 
+                                   ZIP_FILES_WITH_MATCHES) for _ in range(MAX_SEARCH_PROCESSES-1)]
 
         iterate_through_gz_files(ARCHIVES_DIRECTORY)
 
         for _ in range(MAX_SEARCH_PROCESSES):
             SEARCH_QUEUE.put(None)
 
-        logging.info("Waiting on subprocesses to finish searching - This may take a while, please wait...")
+        logging.info("Waiting on search processes to finish - This may take a while, please wait...")
 
         # With no more records to read from the WARCs, put the main process to work with searching and monitor the queue on a background thread
         stop_event = threading.Event()
         monitoring_thread = threading.Thread(target=monitor_remaining_queue_items, args=(SEARCH_QUEUE, stop_event))
         monitoring_thread.start()
 
-        find_and_write_matches_subprocess(SEARCH_QUEUE, definitions, txt_locks)
+        find_and_write_matches_subprocess(SEARCH_QUEUE, definitions, txt_locks, ZIP_FILES_WITH_MATCHES)
         wait(futures)
 
         stop_event.set()
         monitoring_thread.join()
+
+    if ZIP_FILES_WITH_MATCHES:
+        logging.info("Finalizing the zip archives...")
+        tempdir = os.path.join(FINDINGS_OUTPUT_PATH, "temp")
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(merge_zip_files, 
+                                       tempdir,
+                                       FINDINGS_OUTPUT_PATH, 
+                                       os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path, _ in definitions}
+            for future in as_completed(futures):
+                future.result()
+
+        shutil.rmtree(tempdir)
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -148,11 +165,6 @@ def search_function(file_data, file_name, root_gz_file, recursion_depth):
             nested_file_name = extract_nested_gz_filename(file_data[:200])
             search_function(nested_file.read(), nested_file_name, root_gz_file, recursion_depth)
 
-    elif is_file_binary(file_data):
-        # If the file is binary data (image, video, audio, etc), only search the file name, since searching the binary data is wasted effort
-        record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=None)
-        SEARCH_QUEUE.put(record_obj)
-
     else:
         record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=file_data)
         SEARCH_QUEUE.put(record_obj)
@@ -187,6 +199,8 @@ def create_output_directory():
     else:
         FINDINGS_OUTPUT_PATH = os.path.join(FINDINGS_OUTPUT_PATH, findings_directory)
     os.makedirs(FINDINGS_OUTPUT_PATH)
+    if ZIP_FILES_WITH_MATCHES:
+        os.makedirs(os.path.join(FINDINGS_OUTPUT_PATH, "temp"))
 
 
 def read_arguments():
@@ -238,8 +252,8 @@ def read_globals_from_config():
         MAX_SEARCH_PROCESSES = os.cpu_count() if processes_item == "none" else int(processes_item)
 
         global TARGET_PROCESS_MEMORY
-        processes_item = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
-        TARGET_PROCESS_MEMORY = 64000000000 if processes_item == "none" else int(processes_item)
+        process_memory_item = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
+        TARGET_PROCESS_MEMORY = 32000000000 if process_memory_item == "none" else int(process_memory_item)
         
     except Exception as e:
         log_error(f"Error reading the contents of the config.ini file: \n{e}")
@@ -247,7 +261,6 @@ def read_globals_from_config():
 
 
 def finish():
-    # close_zip_files()
     report_errors_and_warnings()
     input("Press Enter to exit...")
 
