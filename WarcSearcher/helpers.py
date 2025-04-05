@@ -5,14 +5,8 @@ import os
 import sys
 import time
 import zipfile
-from io import BytesIO, StringIO
-
-import py7zr
-import rarfile
-
-ERROR_COUNT = 0
-WARNING_COUNT = 0
-
+from io import StringIO
+from logging_helpers import *
 
 class RecordData:
   def __init__(self, root_gz_file, name, contents):
@@ -128,43 +122,6 @@ def is_file_binary(file_data):
     return bool(first_1024_chars.translate(None, text_chars))
 
 
-def is_zip_file(file_data):
-    try:
-        return zipfile.is_zipfile(BytesIO(file_data))
-    except (AttributeError, TypeError):
-        return False
-
-
-def is_7z_file(file_data):
-    try:
-        return py7zr.is_7zfile(BytesIO(file_data))
-    except (AttributeError, TypeError):
-        return False
-
-    
-def is_rar_file(file_data):
-    try:
-        return rarfile.is_rarfile(BytesIO(file_data))
-    except (AttributeError, TypeError):
-        return False
-
-    
-def is_gz_file(file_data, file_name):
-    try:
-        # Magic number for .gz file signature - if it matches the first three bytes of the file data, it's a .gz file
-        return file_data[:3].hex() == '1f8b08' and os.path.splitext(file_name)[1] == '.gz'
-    except (AttributeError, TypeError):
-        return False
-    
-
-def extract_nested_gz_filename(first_gz_file_bytes):
-    parts = first_gz_file_bytes.split(b'\x00')
-    if len(parts) > 1:
-        return parts[1].decode('utf-8')
-    else:
-        return None
-
-
 def reformat_file_name(file_name):
     web_prefixes_removed = file_name.replace('http://', '').replace('https://', '').replace('www.', '')
     return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))
@@ -188,26 +145,31 @@ def monitor_remaining_queue_items(queue, stop_event):
         time.sleep(5)
 
 
-def initialize_logging_to_file(output_directory):
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.FileHandler(f"{output_directory}/output_log.log"), logging.StreamHandler(sys.stdout)],
-        force=True
-    )
+def validate_warc_gz_archives_directory(warc_gz_archives_directory):
+    """Validates that the directory containing the .gz archives exists and has .gz files present."""
+
+    if not os.path.exists(warc_gz_archives_directory):
+        log_error(f"Directory containing the .gz archives to search does not exist: {warc_gz_archives_directory}")
+        sys.exit()
+    if not glob.glob(warc_gz_archives_directory + '/*.gz'):
+        log_error(f"Directory that should contain the .gz archives to search does not contain any: {warc_gz_archives_directory}")
+        sys.exit()
 
 
-def log_warning(message):
-    logging.warning(f"{message}")
-    global WARNING_COUNT
-    WARNING_COUNT += 1
+def validate_search_queries_directory(search_queries_directory):
+    """Validates that the directory containing the regex definition .txt files exists and has .txt files present."""
+
+    if not os.path.exists(search_queries_directory):
+        log_error(f"Directory containing the regex definition .txt files does not exist: {search_queries_directory}")
+        sys.exit()
+    if not glob.glob(search_queries_directory + '/*.txt'):
+        log_error(f"Directory that should contain the regex definition .txt files does not contain any: {search_queries_directory}")
+        sys.exit()
 
 
-def log_error(message):
-    logging.error(f"{message}")
-    global ERROR_COUNT
-    ERROR_COUNT += 1
+def validate_results_output_directory(results_output_directory):
+    """Validates that the directory to output the search results to exists."""
 
-
-def report_errors_and_warnings():
-    logging.info(f"[Errors: {ERROR_COUNT}, Warnings: {WARNING_COUNT}]")
+    if not os.path.exists(results_output_directory):
+        log_error(f"Directory containing the search results does not exist: {results_output_directory}")
+        sys.exit()
