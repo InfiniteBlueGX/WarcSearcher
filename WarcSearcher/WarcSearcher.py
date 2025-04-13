@@ -239,7 +239,6 @@ def move_log_file_to_results_subdirectory():
         WarcSearcherLogger.log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
 
 
-
 def finish():
     """
     Function to be called on program exit. Closes the logging file handler, moves reports errors/warnings.
@@ -248,12 +247,13 @@ def finish():
         logging_handler: The logging file handler.
     """
 
+    WarcSearcherLogger.report_errors_and_warnings()
     WarcSearcherLogger.close_logging_file_handler()
     move_log_file_to_results_subdirectory()
-    WarcSearcherLogger.report_errors_and_warnings()
 
 
 if __name__ == '__main__':
+    # Store the start time
     start_time = time.time()
 
     # Initialize logging, create a log file in the working directory
@@ -268,9 +268,10 @@ if __name__ == '__main__':
     # Create the results subdirectory in the output folder
     create_results_output_subdirectory()
 
-    
+    # Create the regex and output txt file collections
     create_regex_and_output_txt_file_collections()
 
+    # Start the search
     begin_search()
 
     if RESULTS_OUTPUT_SUBDIRECTORY != '':
