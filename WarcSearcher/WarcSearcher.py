@@ -30,22 +30,21 @@ config_items = {
     "TARGET_PROCESS_MEMORY": None
 }
 
-REGEX_PATTERNS_LIST = []
-TXT_FILES_DICT = {}
 SEARCH_QUEUE = None
 RESULTS_OUTPUT_SUBDIRECTORY = ''
 
-def begin_search():
+def begin_search(regex_patterns_list, txt_files_dict):
     manager = Manager()
+    definitions_list = list(zip(txt_files_dict, regex_patterns_list))
 
-    txt_locks, definitions = setup_txt_locks(manager)
+    txt_locks = setup_txt_locks(manager, definitions_list)
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
     with ProcessPoolExecutor(max_workers=config_items["MAX_SEARCH_PROCESSES"]-1) as executor:
         futures = [executor.submit(find_and_write_matches_subprocess, 
                                    SEARCH_QUEUE, 
-                                   definitions, 
+                                   definitions_list, 
                                    txt_locks, 
                                    config_items["ZIP_FILES_WITH_MATCHES"]) for _ in range(config_items["MAX_SEARCH_PROCESSES"]-1)]
 
@@ -61,7 +60,7 @@ def begin_search():
         monitoring_thread = threading.Thread(target=monitor_remaining_queue_items, args=(SEARCH_QUEUE, stop_event))
         monitoring_thread.start()
 
-        find_and_write_matches_subprocess(SEARCH_QUEUE, definitions, txt_locks, config_items["ZIP_FILES_WITH_MATCHES"])
+        find_and_write_matches_subprocess(SEARCH_QUEUE, definitions_list, txt_locks, config_items["ZIP_FILES_WITH_MATCHES"])
         wait(futures)
 
         stop_event.set()
@@ -74,22 +73,22 @@ def begin_search():
             futures = {executor.submit(merge_zip_files, 
                                        tempdir,
                                        RESULTS_OUTPUT_SUBDIRECTORY, 
-                                       os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path, _ in definitions}
+                                       os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path, _ in definitions_list}
             for future in as_completed(futures):
                 future.result()
 
         shutil.rmtree(tempdir)
 
 
-def setup_txt_locks(manager):
+def setup_txt_locks(manager, definitions_list):
     txt_locks = manager.dict()
-    definitions = list(zip(TXT_FILES_DICT, REGEX_PATTERNS_LIST))
-
-    for txt_path, regex in definitions:
+    
+    for txt_path, regex in definitions_list:
         with open(txt_path, "a", encoding='utf-8') as output_file:
             initialize_txt_output_file(output_file, txt_path, regex)
         txt_locks[txt_path] = manager.Lock()
-    return txt_locks,definitions
+
+    return txt_locks
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -192,7 +191,7 @@ def create_output_file_path(definition_file):
     return os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, output_filename)
 
 
-def create_regex_and_output_txt_file_collections():
+def create_regex_and_output_txt_file_collections() -> tuple [list, dict]: 
     """
     Create regex patterns from definition files and prepare output file paths.
     
@@ -201,7 +200,13 @@ def create_regex_and_output_txt_file_collections():
     2. Compiles valid patterns and adds them to REGEX_PATTERNS_LIST
     3. Creates corresponding output file paths in TXT_FILES_DICT
     4. Exits if no valid regex patterns are found
+
+    Returns:
+        tuple: A tuple containing: the list of regex patterns and the dictionary of output file paths
     """
+
+    regex_patterns_list = []
+    txt_files_dict = {}
 
     definition_files = get_definition_files()
     
@@ -209,12 +214,13 @@ def create_regex_and_output_txt_file_collections():
         regex_pattern, success = compile_regex_pattern(definition_file)
         
         if success:
-            REGEX_PATTERNS_LIST.append(regex_pattern)
+            regex_patterns_list.append(regex_pattern)
             
             output_filepath = create_output_file_path(definition_file)
-            TXT_FILES_DICT[output_filepath] = output_filepath
+            txt_files_dict[output_filepath] = output_filepath
 
-    validate_regex_patterns(REGEX_PATTERNS_LIST)
+    validate_regex_patterns(regex_patterns_list)
+    return regex_patterns_list, txt_files_dict
 
 
 def create_results_output_subdirectory():
@@ -322,10 +328,10 @@ if __name__ == '__main__':
     create_results_output_subdirectory()
 
     # Create the regex and output txt file collections
-    create_regex_and_output_txt_file_collections()
+    regex_patterns_list, txt_file_dict = create_regex_and_output_txt_file_collections()
 
     # Start the search
-    begin_search()
+    begin_search(regex_patterns_list, txt_file_dict)
 
     if RESULTS_OUTPUT_SUBDIRECTORY != '':
         WarcSearcherLogger.log_info(f"Results output to: {RESULTS_OUTPUT_SUBDIRECTORY}")
