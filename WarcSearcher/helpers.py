@@ -19,8 +19,8 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_
 
     if zip_files_with_matches:
         zip_archives = {}
-        findings_dir = os.path.dirname(definitions[0][0])
-        zip_process_dir = os.path.join(f"{findings_dir}\\temp", str(os.getpid()))
+        results_dir = os.path.dirname(definitions[0][0])
+        zip_process_dir = os.path.join(f"{results_dir}\\temp", str(os.getpid()))
         os.makedirs(zip_process_dir)           
 
     txt_buffers = {}
@@ -143,7 +143,7 @@ def monitor_remaining_queue_items(queue, stop_event):
         WarcSearcherLogger.log_info(f"Remaining items to search: {queue.qsize()}")
         time.sleep(5)
         
-        
+
 def calculate_execution_time(start_time: float):
     """
     Calculates the search execution time based on the provided start time.

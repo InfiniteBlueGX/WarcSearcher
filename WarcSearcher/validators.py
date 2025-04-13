@@ -33,3 +33,13 @@ def validate_results_output_directory(results_output_directory):
     if not os.path.exists(results_output_directory):
         WarcSearcherLogger.log_error(f"Directory containing the search results does not exist: {results_output_directory}")
         sys.exit()
+
+
+def validate_regex_patterns(regex_patterns_list: list):
+    """
+    Validate that at least one valid regex pattern exists.
+    If no valid patterns are found, log an error and exit the program.
+    """
+    if not regex_patterns_list:
+        WarcSearcherLogger.log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
+        sys.exit()

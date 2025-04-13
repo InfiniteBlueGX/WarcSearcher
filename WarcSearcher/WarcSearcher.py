@@ -16,7 +16,7 @@ import psutil
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
 
-from validate_config import *
+from validators import *
 from helpers import *
 from logger import *
 
@@ -138,24 +138,82 @@ def search_function(file_data, file_name, root_gz_file):
     SEARCH_QUEUE.put(record_obj)
 
 
-def create_regex_and_output_txt_file_collections():
-    definition_files = glob.glob(SEARCH_QUERIES_DIRECTORY + '/*.txt')
-    for definition_file in definition_files:
-        with open(definition_file, 'r', encoding='utf-8') as df:
-            raw_regex = df.read().strip()
-            try:
-                regex_pattern = re.compile(raw_regex, re.IGNORECASE)
-                REGEX_PATTERNS_LIST.append(regex_pattern)
-            except re.error:
-                WarcSearcherLogger.log_error(f"Invalid regular expression found in {definition_file}")
-                continue
-        output_txt_file = f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt"
-        full_txt_path = os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, output_txt_file)
-        TXT_FILES_DICT[full_txt_path] = full_txt_path
+def get_definition_files():
+    """
+    Find all definition files in the search queries directory.
+    
+    Returns:
+        list: A list of paths to definition files
+    """
+    return glob.glob(os.path.join(SEARCH_QUERIES_DIRECTORY, '*.txt'))
 
-    if not REGEX_PATTERNS_LIST:
-        WarcSearcherLogger.log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
-        sys.exit()
+
+def compile_regex_pattern(definition_file):
+    """
+    Read and compile a regex pattern from a definition file.
+    
+    Args:
+        definition_file (str): Path to the definition file
+        
+    Returns:
+        tuple: (compiled_pattern, success_flag)
+            - compiled_pattern: The compiled regex pattern or None if compilation failed
+            - success_flag: True if compilation was successful, False otherwise
+    """
+    try:
+        with open(definition_file, 'r', encoding='utf-8') as file:
+            raw_regex = file.read().strip()
+        
+        try:
+            regex_pattern = re.compile(raw_regex, re.IGNORECASE)
+            return regex_pattern, True
+        except re.error:
+            WarcSearcherLogger.log_error(f"Invalid regular expression found in {definition_file}")
+            return None, False
+            
+    except IOError as e:
+        WarcSearcherLogger.log_error(f"Error reading file {definition_file}: {str(e)}")
+        return None, False
+
+
+def create_output_file_path(definition_file):
+    """
+    Create an output file path for the findings based on the definition file name.
+    
+    Args:
+        definition_file (str): Path to the definition file
+        
+    Returns:
+        str: Path to the output file
+    """
+    filename_without_extension = os.path.splitext(os.path.basename(definition_file))[0]
+    output_filename = f"{filename_without_extension}_findings.txt"
+    return os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, output_filename)
+
+
+def create_regex_and_output_txt_file_collections():
+    """
+    Create regex patterns from definition files and prepare output file paths.
+    
+    This function:
+    1. Reads regex patterns from text files in the SEARCH_QUERIES_DIRECTORY
+    2. Compiles valid patterns and adds them to REGEX_PATTERNS_LIST
+    3. Creates corresponding output file paths in TXT_FILES_DICT
+    4. Exits if no valid regex patterns are found
+    """
+
+    definition_files = get_definition_files()
+    
+    for definition_file in definition_files:
+        regex_pattern, success = compile_regex_pattern(definition_file)
+        
+        if success:
+            REGEX_PATTERNS_LIST.append(regex_pattern)
+            
+            output_filepath = create_output_file_path(definition_file)
+            TXT_FILES_DICT[output_filepath] = output_filepath
+
+    validate_regex_patterns(REGEX_PATTERNS_LIST)
 
 
 def create_results_output_subdirectory():
