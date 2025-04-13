@@ -21,7 +21,7 @@ from helpers import *
 from logger import *
 
 WARC_GZ_ARCHIVES_DIRECTORY = ''
-SEARCH_QUERIES_DIRECTORY = ''
+SEARCH_DEFINITIONS_DIRECTORY = ''
 RESULTS_OUTPUT_DIRECTORY = ''
 RESULTS_OUTPUT_SUBDIRECTORY = ''
 ZIP_FILES_WITH_MATCHES = False
@@ -140,12 +140,12 @@ def search_function(file_data, file_name, root_gz_file):
 
 def get_definition_files():
     """
-    Find all definition files in the search queries directory.
+    Find all definition files in the search definitions directory.
     
     Returns:
         list: A list of paths to definition files
     """
-    return glob.glob(os.path.join(SEARCH_QUERIES_DIRECTORY, '*.txt'))
+    return glob.glob(os.path.join(SEARCH_DEFINITIONS_DIRECTORY, '*.txt'))
 
 
 def compile_regex_pattern(definition_file):
@@ -196,7 +196,7 @@ def create_regex_and_output_txt_file_collections():
     Create regex patterns from definition files and prepare output file paths.
     
     This function:
-    1. Reads regex patterns from text files in the SEARCH_QUERIES_DIRECTORY
+    1. Reads regex patterns from text files in the SEARCH_DEFINITIONS_DIRECTORY
     2. Compiles valid patterns and adds them to REGEX_PATTERNS_LIST
     3. Creates corresponding output file paths in TXT_FILES_DICT
     4. Exits if no valid regex patterns are found
@@ -257,9 +257,9 @@ def read_required_config_ini_variables(parser):
     WARC_GZ_ARCHIVES_DIRECTORY = parser.get('REQUIRED', 'warc_gz_archives_directory')
     validate_warc_gz_archives_directory(WARC_GZ_ARCHIVES_DIRECTORY)
 
-    global SEARCH_QUERIES_DIRECTORY
-    SEARCH_QUERIES_DIRECTORY = parser.get('REQUIRED', 'search_queries_directory')
-    validate_search_queries_directory(SEARCH_QUERIES_DIRECTORY)
+    global SEARCH_DEFINITIONS_DIRECTORY
+    SEARCH_DEFINITIONS_DIRECTORY = parser.get('REQUIRED', 'search_definitions_directory')
+    validate_search_definitions_directory(SEARCH_DEFINITIONS_DIRECTORY)
         
     global RESULTS_OUTPUT_DIRECTORY
     RESULTS_OUTPUT_DIRECTORY = parser.get('REQUIRED', 'results_output_directory')

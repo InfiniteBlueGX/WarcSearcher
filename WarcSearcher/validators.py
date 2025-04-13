@@ -16,14 +16,14 @@ def validate_warc_gz_archives_directory(warc_gz_archives_directory):
         sys.exit()
 
 
-def validate_search_queries_directory(search_queries_directory):
+def validate_search_definitions_directory(search_definitions_directory):
     """Validates that the directory containing the regex definition .txt files exists and has .txt files present."""
 
-    if not os.path.exists(search_queries_directory):
-        WarcSearcherLogger.log_error(f"Directory containing the regex definition .txt files does not exist: {search_queries_directory}")
+    if not os.path.exists(search_definitions_directory):
+        WarcSearcherLogger.log_error(f"Directory containing the regex definition .txt files does not exist: {search_definitions_directory}")
         sys.exit()
-    if not glob.glob(search_queries_directory + '/*.txt'):
-        WarcSearcherLogger.log_error(f"Directory that should contain the regex definition .txt files does not contain any: {search_queries_directory}")
+    if not glob.glob(search_definitions_directory + '/*.txt'):
+        WarcSearcherLogger.log_error(f"Directory that should contain the regex definition .txt files does not contain any: {search_definitions_directory}")
         sys.exit()
 
 
