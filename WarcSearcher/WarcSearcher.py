@@ -2,28 +2,23 @@ import atexit
 import configparser
 import datetime
 import glob
-#import gzip
-#import logging
 import os
 import re
 import shutil
 import sys
 import threading
 import time
-#import zipfile
 from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
-#from io import BytesIO
 from multiprocessing import Manager
 
 import psutil
-# import py7zr
-# import rarfile
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
 
+from validate_config import *
 from helpers import *
-from logging_helpers import *
+from logger import *
 
 WARC_GZ_ARCHIVES_DIRECTORY = ''
 SEARCH_QUERIES_DIRECTORY = ''
@@ -58,7 +53,7 @@ def begin_search():
         for _ in range(MAX_SEARCH_PROCESSES):
             SEARCH_QUEUE.put(None)
 
-        logging.info("Waiting on search processes to finish - This may take a while, please wait...")
+        WarcSearcherLogger.log_info("Waiting on search processes to finish - This may take a while, please wait...")
 
         # With no more records to read from the WARCs, put the main process to work with searching and monitor the queue on a background thread
         stop_event = threading.Event()
@@ -72,7 +67,7 @@ def begin_search():
         monitoring_thread.join()
 
     if ZIP_FILES_WITH_MATCHES:
-        logging.info("Finalizing the zip archives...")
+        WarcSearcherLogger.log_info("Finalizing the zip archives...")
         tempdir = os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, "temp")
         with ThreadPoolExecutor() as executor:
             futures = {executor.submit(merge_zip_files, 
@@ -83,6 +78,7 @@ def begin_search():
                 future.result()
 
         shutil.rmtree(tempdir)
+
 
 def setup_txt_locks(manager):
     txt_locks = manager.dict()
@@ -99,7 +95,7 @@ def iterate_through_gz_files(gz_directory_path):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
 
     if not gz_files:
-        log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
+        WarcSearcherLogger.log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
 
     with ThreadPoolExecutor(max_workers=MAX_ARCHIVE_READ_THREADS) as executor:
@@ -111,12 +107,12 @@ def iterate_through_gz_files(gz_directory_path):
 
 def open_warc_gz_file(gz_file_path):
     gz_file_stream = GZipStream(FileStream(gz_file_path, 'rb'))
-    logging.info(f"Beginning to process {gz_file_path}")
+    WarcSearcherLogger.log_info(f"Beginning to process {gz_file_path}")
 
     try:
         records = ArchiveIterator(gz_file_stream, strict_mode=False)
         if not any(records):
-            log_warning(f"No WARC records found in {gz_file_path}")
+            WarcSearcherLogger.log_warning(f"No WARC records found in {gz_file_path}")
             return
 
         records_searched = 0
@@ -128,13 +124,13 @@ def open_warc_gz_file(gz_file_path):
                 search_function(record_content, record_name, gz_file_path)
 
                 if records_searched % 1000 == 0:
-                    logging.info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
+                    WarcSearcherLogger.log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
                     process = psutil.Process()
                     while get_total_memory_usage(process) > TARGET_PROCESS_MEMORY:
-                        log_warning(f"Process memory is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
+                        WarcSearcherLogger.log_warning(f"Process memory is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
                         time.sleep(10)
     except Exception as e:
-        log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
+        WarcSearcherLogger.log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
 
 def search_function(file_data, file_name, root_gz_file):
@@ -151,14 +147,14 @@ def create_regex_and_output_txt_file_collections():
                 regex_pattern = re.compile(raw_regex, re.IGNORECASE)
                 REGEX_PATTERNS_LIST.append(regex_pattern)
             except re.error:
-                log_error(f"Invalid regular expression found in {definition_file}")
+                WarcSearcherLogger.log_error(f"Invalid regular expression found in {definition_file}")
                 continue
         output_txt_file = f"{os.path.splitext(os.path.basename(definition_file))[0]}_findings.txt"
         full_txt_path = os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, output_txt_file)
         TXT_FILES_DICT[full_txt_path] = full_txt_path
 
     if not REGEX_PATTERNS_LIST:
-        log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
+        WarcSearcherLogger.log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
         sys.exit()
 
 
@@ -171,7 +167,7 @@ def create_results_output_subdirectory():
     RESULTS_OUTPUT_SUBDIRECTORY = os.path.join(RESULTS_OUTPUT_DIRECTORY, results_subdirectory_name)
     os.makedirs(RESULTS_OUTPUT_SUBDIRECTORY)
 
-    logging.info(f"Results output directory created in: {RESULTS_OUTPUT_DIRECTORY}")
+    WarcSearcherLogger.log_info(f"Results output directory created in: {RESULTS_OUTPUT_DIRECTORY}")
 
     if ZIP_FILES_WITH_MATCHES:
         os.makedirs(os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, "temp"))
@@ -181,7 +177,7 @@ def read_config_ini_variables():
     """Reads the variables found in ther config.ini file after ensuring it exists."""
 
     if not os.path.isfile('config.ini'):
-        log_error("config.ini file does not exist in the working directory.")
+        WarcSearcherLogger.log_error("config.ini file does not exist in the working directory.")
         sys.exit()
 
     parser = configparser.ConfigParser()
@@ -192,28 +188,8 @@ def read_config_ini_variables():
         read_optional_config_ini_variables(parser)
         
     except Exception as e:
-        log_error(f"Error reading the contents of the config.ini file: \n{e}")
+        WarcSearcherLogger.log_error(f"Error reading the contents of the config.ini file: \n{e}")
         sys.exit()
-
-
-def read_optional_config_ini_variables(parser):
-    """Reads the optional variables from the config.ini file and sets them as global variables."""
-
-    global ZIP_FILES_WITH_MATCHES
-    ZIP_FILES_WITH_MATCHES = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
-
-    # TODO maybe remove this and just use the default value of 4 for max_archive_read_threads
-    global MAX_ARCHIVE_READ_THREADS
-    threads_item = parser.get('OPTIONAL', 'max_concurrent_archive_read_threads').lower()
-    MAX_ARCHIVE_READ_THREADS = min(32, os.cpu_count() + 4) if threads_item == "none" else int(threads_item)
-
-    global MAX_SEARCH_PROCESSES
-    processes_item = parser.get('OPTIONAL', 'max_concurrent_search_processes').lower()
-    MAX_SEARCH_PROCESSES = os.cpu_count() if processes_item == "none" else int(processes_item)
-
-    global TARGET_PROCESS_MEMORY
-    process_memory_item = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
-    TARGET_PROCESS_MEMORY = 32000000000 if process_memory_item == "none" else int(process_memory_item)
 
 
 def read_required_config_ini_variables(parser):
@@ -231,6 +207,25 @@ def read_required_config_ini_variables(parser):
     RESULTS_OUTPUT_DIRECTORY = parser.get('REQUIRED', 'results_output_directory')
     validate_results_output_directory(RESULTS_OUTPUT_DIRECTORY)
 
+def read_optional_config_ini_variables(parser):
+    """Reads the optional variables from the config.ini file and sets them as global variables."""
+
+    global ZIP_FILES_WITH_MATCHES
+    ZIP_FILES_WITH_MATCHES = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
+
+    # TODO maybe remove this and just use the default value of 4 for max_archive_read_threads .
+    global MAX_ARCHIVE_READ_THREADS
+    threads_item = parser.get('OPTIONAL', 'max_concurrent_archive_read_threads').lower()
+    MAX_ARCHIVE_READ_THREADS = min(32, os.cpu_count() + 4) if threads_item == "none" else int(threads_item)
+
+    global MAX_SEARCH_PROCESSES
+    processes_item = parser.get('OPTIONAL', 'max_concurrent_search_processes').lower()
+    MAX_SEARCH_PROCESSES = os.cpu_count() if processes_item == "none" else int(processes_item)
+
+    global TARGET_PROCESS_MEMORY
+    process_memory_item = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
+    TARGET_PROCESS_MEMORY = 32000000000 if process_memory_item == "none" else int(process_memory_item)
+
 
 def move_log_file_to_results_subdirectory():
     """Moves the log file to the results output subdirectory, or keeps it in the working directory if an output subdirectory was not created."""
@@ -241,7 +236,7 @@ def move_log_file_to_results_subdirectory():
         shutil.move(working_directory_log_path, results_output_subdirectory_log_path)
     else:
         # Keep log file in the working directory if no results subdirectory was created as part of the execution
-        logging.info(f"Log file output to working directory: {os.getcwd()}\\output_log")
+        WarcSearcherLogger.log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
 
 
 def calculate_execution_time(start_time):
@@ -255,10 +250,10 @@ def calculate_execution_time(start_time):
     execution_time = time.time() - start_time
     minutes, seconds = divmod(execution_time, 60)
 
-    logging.info(f"Finished searching. Elapsed time: {int(minutes)}m {round(seconds, 2)}s")
+    WarcSearcherLogger.log_info(f"Finished searching. Elapsed time: {int(minutes)}m {round(seconds, 2)}s")
 
 
-def finish(logging_handler):
+def finish():
     """
     Function to be called on program exit. Closes the logging file handler, moves reports errors/warnings.
     
@@ -266,9 +261,9 @@ def finish(logging_handler):
         logging_handler: The logging file handler.
     """
 
-    close_logging_file_handler(logging_handler)
+    WarcSearcherLogger.close_logging_file_handler()
     move_log_file_to_results_subdirectory()
-    report_errors_and_warnings()
+    WarcSearcherLogger.report_errors_and_warnings()
     input("Press Enter to finish...")
 
 
@@ -276,10 +271,10 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # Initialize logging, create a log file in the working directory
-    logging_handler = initialize_logging_to_file()
+    logging_handler = WarcSearcherLogger.initialize_logging_to_file()
 
     # Register the finish function to be automatically called on program exit
-    atexit.register(lambda: finish(logging_handler))
+    atexit.register(lambda: finish())
 
     # Read the config.ini file variables and store them as global variables
     read_config_ini_variables()
@@ -292,7 +287,7 @@ if __name__ == '__main__':
 
     begin_search()
 
-    calculate_execution_time(start_time)
-
     if RESULTS_OUTPUT_SUBDIRECTORY != '':
-        logging.info(f"Results output to: {RESULTS_OUTPUT_SUBDIRECTORY}")
+        WarcSearcherLogger.log_info(f"Results output to: {RESULTS_OUTPUT_SUBDIRECTORY}")
+
+    calculate_execution_time(start_time)

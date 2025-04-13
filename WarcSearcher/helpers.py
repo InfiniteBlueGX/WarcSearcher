@@ -6,7 +6,8 @@ import sys
 import time
 import zipfile
 from io import StringIO
-from logging_helpers import *
+
+from logger import *
 
 class RecordData:
   def __init__(self, root_gz_file, name, contents):
@@ -141,35 +142,5 @@ def get_total_memory_usage(process):
 
 def monitor_remaining_queue_items(queue, stop_event):
     while not stop_event.is_set():
-        logging.info(f"Remaining items to search: {queue.qsize()}")
+        WarcSearcherLogger.log_info(f"Remaining items to search: {queue.qsize()}")
         time.sleep(5)
-
-
-def validate_warc_gz_archives_directory(warc_gz_archives_directory):
-    """Validates that the directory containing the .gz archives exists and has .gz files present."""
-
-    if not os.path.exists(warc_gz_archives_directory):
-        log_error(f"Directory containing the .gz archives to search does not exist: {warc_gz_archives_directory}")
-        sys.exit()
-    if not glob.glob(warc_gz_archives_directory + '/*.gz'):
-        log_error(f"Directory that should contain the .gz archives to search does not contain any: {warc_gz_archives_directory}")
-        sys.exit()
-
-
-def validate_search_queries_directory(search_queries_directory):
-    """Validates that the directory containing the regex definition .txt files exists and has .txt files present."""
-
-    if not os.path.exists(search_queries_directory):
-        log_error(f"Directory containing the regex definition .txt files does not exist: {search_queries_directory}")
-        sys.exit()
-    if not glob.glob(search_queries_directory + '/*.txt'):
-        log_error(f"Directory that should contain the regex definition .txt files does not contain any: {search_queries_directory}")
-        sys.exit()
-
-
-def validate_results_output_directory(results_output_directory):
-    """Validates that the directory to output the search results to exists."""
-
-    if not os.path.exists(results_output_directory):
-        log_error(f"Directory containing the search results does not exist: {results_output_directory}")
-        sys.exit()
