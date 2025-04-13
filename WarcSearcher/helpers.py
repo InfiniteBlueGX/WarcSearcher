@@ -1,8 +1,6 @@
 import datetime
 import glob
-import logging
 import os
-import sys
 import time
 import zipfile
 from io import StringIO
@@ -144,3 +142,17 @@ def monitor_remaining_queue_items(queue, stop_event):
     while not stop_event.is_set():
         WarcSearcherLogger.log_info(f"Remaining items to search: {queue.qsize()}")
         time.sleep(5)
+        
+        
+def calculate_execution_time(start_time: float):
+    """
+    Calculates the search execution time based on the provided start time.
+    
+    Args:
+        start_time: The time when execution started
+    """
+
+    execution_time = time.time() - start_time
+    minutes, seconds = divmod(execution_time, 60)
+
+    return int(minutes), round(seconds, 2)

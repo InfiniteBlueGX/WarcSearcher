@@ -239,19 +239,6 @@ def move_log_file_to_results_subdirectory():
         WarcSearcherLogger.log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
 
 
-def calculate_execution_time(start_time):
-    """
-    Calculates and logs the search execution time based on the provided start time.
-    
-    Args:
-        start_time: The time when execution started
-    """
-
-    execution_time = time.time() - start_time
-    minutes, seconds = divmod(execution_time, 60)
-
-    WarcSearcherLogger.log_info(f"Finished searching. Elapsed time: {int(minutes)}m {round(seconds, 2)}s")
-
 
 def finish():
     """
@@ -264,7 +251,6 @@ def finish():
     WarcSearcherLogger.close_logging_file_handler()
     move_log_file_to_results_subdirectory()
     WarcSearcherLogger.report_errors_and_warnings()
-    input("Press Enter to finish...")
 
 
 if __name__ == '__main__':
@@ -290,4 +276,5 @@ if __name__ == '__main__':
     if RESULTS_OUTPUT_SUBDIRECTORY != '':
         WarcSearcherLogger.log_info(f"Results output to: {RESULTS_OUTPUT_SUBDIRECTORY}")
 
-    calculate_execution_time(start_time)
+    elapsedMinutes, elapsedSeconds = calculate_execution_time(start_time)
+    WarcSearcherLogger.log_info(f"Finished searching. Elapsed time: {elapsedMinutes}m {elapsedSeconds}s")
