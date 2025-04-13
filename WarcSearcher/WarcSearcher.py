@@ -20,19 +20,20 @@ from validators import *
 from helpers import *
 from logger import *
 
-WARC_GZ_ARCHIVES_DIRECTORY = ''
-SEARCH_DEFINITIONS_DIRECTORY = ''
-RESULTS_OUTPUT_DIRECTORY = ''
-RESULTS_OUTPUT_SUBDIRECTORY = ''
-ZIP_FILES_WITH_MATCHES = False
-MAX_ARCHIVE_READ_THREADS = None
-MAX_SEARCH_PROCESSES = None
-TARGET_PROCESS_MEMORY = None
+config_items = {
+    "WARC_GZ_ARCHIVES_DIRECTORY": '',
+    "SEARCH_QUERIES_DIRECTORY": '',
+    "RESULTS_OUTPUT_DIRECTORY": '',
+    "ZIP_FILES_WITH_MATCHES": False,
+    "MAX_ARCHIVE_READ_THREADS": None,
+    "MAX_SEARCH_PROCESSES": None,
+    "TARGET_PROCESS_MEMORY": None
+}
 
-#MAX_RECURSION_DEPTH = 50
 REGEX_PATTERNS_LIST = []
 TXT_FILES_DICT = {}
 SEARCH_QUEUE = None
+RESULTS_OUTPUT_SUBDIRECTORY = ''
 
 def begin_search():
     manager = Manager()
@@ -41,16 +42,16 @@ def begin_search():
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
-    with ProcessPoolExecutor(max_workers=MAX_SEARCH_PROCESSES-1) as executor:
+    with ProcessPoolExecutor(max_workers=config_items["MAX_SEARCH_PROCESSES"]-1) as executor:
         futures = [executor.submit(find_and_write_matches_subprocess, 
                                    SEARCH_QUEUE, 
                                    definitions, 
                                    txt_locks, 
-                                   ZIP_FILES_WITH_MATCHES) for _ in range(MAX_SEARCH_PROCESSES-1)]
+                                   config_items["ZIP_FILES_WITH_MATCHES"]) for _ in range(config_items["MAX_SEARCH_PROCESSES"]-1)]
 
-        iterate_through_gz_files(WARC_GZ_ARCHIVES_DIRECTORY)
+        iterate_through_gz_files(config_items["WARC_GZ_ARCHIVES_DIRECTORY"])
 
-        for _ in range(MAX_SEARCH_PROCESSES):
+        for _ in range(config_items["MAX_SEARCH_PROCESSES"]):
             SEARCH_QUEUE.put(None)
 
         WarcSearcherLogger.log_info("Waiting on search processes to finish - This may take a while, please wait...")
@@ -60,13 +61,13 @@ def begin_search():
         monitoring_thread = threading.Thread(target=monitor_remaining_queue_items, args=(SEARCH_QUEUE, stop_event))
         monitoring_thread.start()
 
-        find_and_write_matches_subprocess(SEARCH_QUEUE, definitions, txt_locks, ZIP_FILES_WITH_MATCHES)
+        find_and_write_matches_subprocess(SEARCH_QUEUE, definitions, txt_locks, config_items["ZIP_FILES_WITH_MATCHES"])
         wait(futures)
 
         stop_event.set()
         monitoring_thread.join()
 
-    if ZIP_FILES_WITH_MATCHES:
+    if config_items["ZIP_FILES_WITH_MATCHES"]:
         WarcSearcherLogger.log_info("Finalizing the zip archives...")
         tempdir = os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, "temp")
         with ThreadPoolExecutor() as executor:
@@ -98,7 +99,7 @@ def iterate_through_gz_files(gz_directory_path):
         WarcSearcherLogger.log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
 
-    with ThreadPoolExecutor(max_workers=MAX_ARCHIVE_READ_THREADS) as executor:
+    with ThreadPoolExecutor(max_workers=config_items["MAX_ARCHIVE_READ_THREADS"]) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
 
         for future in as_completed(tasks):
@@ -126,7 +127,7 @@ def open_warc_gz_file(gz_file_path):
                 if records_searched % 1000 == 0:
                     WarcSearcherLogger.log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
                     process = psutil.Process()
-                    while get_total_memory_usage(process) > TARGET_PROCESS_MEMORY:
+                    while get_total_memory_usage(process) > config_items["TARGET_PROCESS_MEMORY"]:
                         WarcSearcherLogger.log_warning(f"Process memory is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
                         time.sleep(10)
     except Exception as e:
@@ -145,7 +146,7 @@ def get_definition_files():
     Returns:
         list: A list of paths to definition files
     """
-    return glob.glob(os.path.join(SEARCH_DEFINITIONS_DIRECTORY, '*.txt'))
+    return glob.glob(os.path.join(config_items["SEARCH_DEFINITIONS_DIRECTORY"], '*.txt'))
 
 
 def compile_regex_pattern(definition_file):
@@ -222,12 +223,12 @@ def create_results_output_subdirectory():
     results_subdirectory_name = "WarcSearcher_Results_" + datetime.datetime.now().strftime('%m-%d-%y_%H_%M_%S')
     
     global RESULTS_OUTPUT_SUBDIRECTORY
-    RESULTS_OUTPUT_SUBDIRECTORY = os.path.join(RESULTS_OUTPUT_DIRECTORY, results_subdirectory_name)
+    RESULTS_OUTPUT_SUBDIRECTORY = os.path.join(config_items["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
     os.makedirs(RESULTS_OUTPUT_SUBDIRECTORY)
 
-    WarcSearcherLogger.log_info(f"Results output directory created in: {RESULTS_OUTPUT_DIRECTORY}")
+    WarcSearcherLogger.log_info(f"Results output directory created in: {config_items["RESULTS_OUTPUT_DIRECTORY"]}")
 
-    if ZIP_FILES_WITH_MATCHES:
+    if config_items["ZIP_FILES_WITH_MATCHES"]:
         os.makedirs(os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, "temp"))
 
 
@@ -251,38 +252,32 @@ def read_config_ini_variables():
 
 
 def read_required_config_ini_variables(parser):
-    """Reads the required variables from the config.ini file, validates them, and sets them as global variables."""
+    """Reads the required variables from the config.ini file, validates them, and sets them in the config dictionary."""
 
-    global WARC_GZ_ARCHIVES_DIRECTORY
-    WARC_GZ_ARCHIVES_DIRECTORY = parser.get('REQUIRED', 'warc_gz_archives_directory')
-    validate_warc_gz_archives_directory(WARC_GZ_ARCHIVES_DIRECTORY)
+    config_items["WARC_GZ_ARCHIVES_DIRECTORY"] = parser.get('REQUIRED', 'warc_gz_archives_directory')
+    validate_warc_gz_archives_directory(config_items["WARC_GZ_ARCHIVES_DIRECTORY"])
 
-    global SEARCH_DEFINITIONS_DIRECTORY
-    SEARCH_DEFINITIONS_DIRECTORY = parser.get('REQUIRED', 'search_definitions_directory')
-    validate_search_definitions_directory(SEARCH_DEFINITIONS_DIRECTORY)
+    config_items["SEARCH_DEFINITIONS_DIRECTORY"] = parser.get('REQUIRED', 'search_definitions_directory')
+    validate_search_definitions_directory(config_items["SEARCH_DEFINITIONS_DIRECTORY"])
         
-    global RESULTS_OUTPUT_DIRECTORY
-    RESULTS_OUTPUT_DIRECTORY = parser.get('REQUIRED', 'results_output_directory')
-    validate_results_output_directory(RESULTS_OUTPUT_DIRECTORY)
+    config_items["RESULTS_OUTPUT_DIRECTORY"] = parser.get('REQUIRED', 'results_output_directory')
+    validate_results_output_directory(config_items["RESULTS_OUTPUT_DIRECTORY"])
+
 
 def read_optional_config_ini_variables(parser):
-    """Reads the optional variables from the config.ini file and sets them as global variables."""
+    """Reads the optional variables from the config.ini file and sets them in the config dictionary."""
 
-    global ZIP_FILES_WITH_MATCHES
-    ZIP_FILES_WITH_MATCHES = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
+    config_items["ZIP_FILES_WITH_MATCHES"] = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
 
-    # TODO maybe remove this and just use the default value of 4 for max_archive_read_threads .
-    global MAX_ARCHIVE_READ_THREADS
+    # TODO maybe remove this and just use the default value of 4 for max_archive_read_threads.
     threads_item = parser.get('OPTIONAL', 'max_concurrent_archive_read_threads').lower()
-    MAX_ARCHIVE_READ_THREADS = min(32, os.cpu_count() + 4) if threads_item == "none" else int(threads_item)
+    config_items["MAX_ARCHIVE_READ_THREADS"] = min(32, os.cpu_count() + 4) if threads_item == "none" else int(threads_item)
 
-    global MAX_SEARCH_PROCESSES
     processes_item = parser.get('OPTIONAL', 'max_concurrent_search_processes').lower()
-    MAX_SEARCH_PROCESSES = os.cpu_count() if processes_item == "none" else int(processes_item)
+    config_items["MAX_SEARCH_PROCESSES"] = os.cpu_count() if processes_item == "none" else int(processes_item)
 
-    global TARGET_PROCESS_MEMORY
     process_memory_item = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
-    TARGET_PROCESS_MEMORY = 32000000000 if process_memory_item == "none" else int(process_memory_item)
+    config_items["TARGET_PROCESS_MEMORY"] = 32000000000 if process_memory_item == "none" else int(process_memory_item)
 
 
 def move_log_file_to_results_subdirectory():
