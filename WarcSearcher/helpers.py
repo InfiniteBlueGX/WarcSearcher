@@ -109,7 +109,7 @@ def find_regex_matches(input_string, regex_pattern):
 
 
 def write_file_with_match_to_zip(file_data, file_name, zip_archive):
-    reformatted_file_name = reformat_file_name(file_name)
+    reformatted_file_name = remove_web_prefixes(file_name)
     if reformatted_file_name not in zip_archive.namelist():
         zip_archive.writestr(reformatted_file_name, file_data)
 
@@ -121,7 +121,7 @@ def is_file_binary(file_data):
     return bool(first_1024_chars.translate(None, text_chars))
 
 
-def reformat_file_name(file_name):
+def remove_web_prefixes(file_name):
     web_prefixes_removed = file_name.replace('http://', '').replace('https://', '').replace('www.', '')
     return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))
 
@@ -147,9 +147,6 @@ def monitor_remaining_queue_items(queue, stop_event):
 def calculate_execution_time(start_time: float):
     """
     Calculates the search execution time based on the provided start time.
-    
-    Args:
-        start_time: The time when execution started
     """
 
     execution_time = time.time() - start_time

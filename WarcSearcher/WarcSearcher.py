@@ -1,6 +1,4 @@
 import atexit
-import configparser
-import datetime
 import glob
 import os
 import re
@@ -11,6 +9,7 @@ import time
 from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
 from multiprocessing import Manager
+import fileops
 import config
 
 import psutil
@@ -21,14 +20,14 @@ from validators import *
 from helpers import *
 from logger import *
 from config import *
+from fileops import *
 
 
 SEARCH_QUEUE = None
-RESULTS_OUTPUT_SUBDIRECTORY = ''
 
-def begin_search(regex_patterns_list, txt_files_dict):
+
+def begin_search(definitions_list):
     manager = Manager()
-    definitions_list = list(zip(txt_files_dict, regex_patterns_list))
 
     txt_locks = setup_txt_locks(manager, definitions_list)
 
@@ -49,39 +48,30 @@ def begin_search(regex_patterns_list, txt_files_dict):
         WarcSearcherLogger.log_info("Waiting on search processes to finish - This may take a while, please wait...")
 
         # With no more records to read from the WARCs, put the main process to work with searching and monitor the queue on a background thread
-        stop_event = threading.Event()
-        monitoring_thread = threading.Thread(target=monitor_remaining_queue_items, args=(SEARCH_QUEUE, stop_event))
-        monitoring_thread.start()
+        # stop_event = threading.Event()
+        # monitoring_thread = threading.Thread(target=monitor_remaining_queue_items, args=(SEARCH_QUEUE, stop_event))
+        # monitoring_thread.start()
 
-        find_and_write_matches_subprocess(SEARCH_QUEUE, definitions_list, txt_locks, config.settings["ZIP_FILES_WITH_MATCHES"])
+        # find_and_write_matches_subprocess(SEARCH_QUEUE, definitions_list, txt_locks, config.settings["ZIP_FILES_WITH_MATCHES"])
+        # wait(futures)
+
+        # stop_event.set()
+        # monitoring_thread.join()
         wait(futures)
-
-        stop_event.set()
-        monitoring_thread.join()
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
         WarcSearcherLogger.log_info("Finalizing the zip archives...")
-        tempdir = os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, "temp")
+        tempdir = os.path.join(fileops.results_output_subdirectory, "temp")
         with ThreadPoolExecutor() as executor:
             futures = {executor.submit(merge_zip_files, 
                                        tempdir,
-                                       RESULTS_OUTPUT_SUBDIRECTORY, 
+                                       fileops.results_output_subdirectory, 
                                        os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path, _ in definitions_list}
             for future in as_completed(futures):
                 future.result()
 
         shutil.rmtree(tempdir)
 
-
-def setup_txt_locks(manager, definitions_list):
-    txt_locks = manager.dict()
-    
-    for txt_path, regex in definitions_list:
-        with open(txt_path, "a", encoding='utf-8') as output_file:
-            initialize_txt_output_file(output_file, txt_path, regex)
-        txt_locks[txt_path] = manager.Lock()
-
-    return txt_locks
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -96,6 +86,7 @@ def iterate_through_gz_files(gz_directory_path):
 
         for future in as_completed(tasks):
             future.result()
+
 
 
 def open_warc_gz_file(gz_file_path):
@@ -114,7 +105,8 @@ def open_warc_gz_file(gz_file_path):
                 records_searched += 1
                 record_content = record.reader.read()
                 record_name = record.headers['WARC-Target-URI']
-                search_function(record_content, record_name, gz_file_path)
+                record_obj = RecordData(root_gz_file=gz_file_path, name=record_name, contents=record_content)
+                SEARCH_QUEUE.put(record_obj)
 
                 if records_searched % 1000 == 0:
                     WarcSearcherLogger.log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
@@ -125,20 +117,6 @@ def open_warc_gz_file(gz_file_path):
     except Exception as e:
         WarcSearcherLogger.log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
-
-def search_function(file_data, file_name, root_gz_file):
-    record_obj = RecordData(root_gz_file=root_gz_file, name=file_name, contents=file_data)
-    SEARCH_QUEUE.put(record_obj)
-
-
-def get_definition_files():
-    """
-    Find all definition files in the search definitions directory.
-    
-    Returns:
-        list: A list of paths to definition files
-    """
-    return glob.glob(os.path.join(config.settings["SEARCH_DEFINITIONS_DIRECTORY"], '*.txt'))
 
 
 def compile_regex_pattern(definition_file):
@@ -169,39 +147,16 @@ def compile_regex_pattern(definition_file):
         return None, False
 
 
-def create_output_file_path(definition_file):
+
+def create_regex_and_output_txt_file_collections() -> list: 
     """
-    Create an output file path for the findings based on the definition file name.
     
-    Args:
-        definition_file (str): Path to the definition file
-        
-    Returns:
-        str: Path to the output file
-    """
-    filename_without_extension = os.path.splitext(os.path.basename(definition_file))[0]
-    output_filename = f"{filename_without_extension}_findings.txt"
-    return os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, output_filename)
-
-
-def create_regex_and_output_txt_file_collections() -> tuple [list, dict]: 
-    """
-    Create regex patterns from definition files and prepare output file paths.
-    
-    This function:
-    1. Reads regex patterns from text files in the SEARCH_DEFINITIONS_DIRECTORY
-    2. Compiles valid patterns and adds them to REGEX_PATTERNS_LIST
-    3. Creates corresponding output file paths in TXT_FILES_DICT
-    4. Exits if no valid regex patterns are found
-
-    Returns:
-        tuple: A tuple containing: the list of regex patterns and the dictionary of output file paths
     """
 
     regex_patterns_list = []
-    txt_files_dict = {}
+    results_txt_files_dict = {}
 
-    definition_files = get_definition_files()
+    definition_files = get_definition_txt_files_list()
     
     for definition_file in definition_files:
         regex_pattern, success = compile_regex_pattern(definition_file)
@@ -209,57 +164,13 @@ def create_regex_and_output_txt_file_collections() -> tuple [list, dict]:
         if success:
             regex_patterns_list.append(regex_pattern)
             
-            output_filepath = create_output_file_path(definition_file)
-            txt_files_dict[output_filepath] = output_filepath
+            output_filepath = create_results_txt_file_path(definition_file)
+            results_txt_files_dict[output_filepath] = output_filepath
 
     validate_regex_patterns(regex_patterns_list)
-    return regex_patterns_list, txt_files_dict
 
+    return list(zip(results_txt_files_dict, regex_patterns_list))
 
-def create_results_output_subdirectory():
-    """Creates a timestamped subdirectory in the results output directory to store the search results for the current execution."""
-
-    results_subdirectory_name = "WarcSearcher_Results_" + datetime.datetime.now().strftime('%m-%d-%y_%H_%M_%S')
-    
-    global RESULTS_OUTPUT_SUBDIRECTORY
-    RESULTS_OUTPUT_SUBDIRECTORY = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
-    os.makedirs(RESULTS_OUTPUT_SUBDIRECTORY)
-
-    WarcSearcherLogger.log_info(f"Results output directory created in: {config.settings["RESULTS_OUTPUT_DIRECTORY"]}")
-
-    if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        os.makedirs(os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, "temp"))
-
-
-def read_config_ini_variables():
-    """Reads the variables found in ther config.ini file after ensuring it exists."""
-
-    if not os.path.isfile('config.ini'):
-        WarcSearcherLogger.log_error("config.ini file does not exist in the working directory.")
-        sys.exit()
-
-    parser = configparser.ConfigParser()
-    parser.read('config.ini')
-
-    try:
-        read_required_config_ini_variables(parser)
-        read_optional_config_ini_variables(parser)
-        
-    except Exception as e:
-        WarcSearcherLogger.log_error(f"Error reading the contents of the config.ini file: \n{e}")
-        sys.exit()
-
-
-def move_log_file_to_results_subdirectory():
-    """Moves the log file to the results output subdirectory, or keeps it in the working directory if an output subdirectory was not created."""
-
-    if RESULTS_OUTPUT_SUBDIRECTORY != '':
-        working_directory_log_path = os.path.join(os.getcwd(), 'output_log.log')
-        results_output_subdirectory_log_path = os.path.join(RESULTS_OUTPUT_SUBDIRECTORY, 'output_log.log')
-        shutil.move(working_directory_log_path, results_output_subdirectory_log_path)
-    else:
-        # Keep log file in the working directory if no results subdirectory was created as part of the execution
-        WarcSearcherLogger.log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
 
 
 def finish():
@@ -273,6 +184,7 @@ def finish():
     WarcSearcherLogger.report_errors_and_warnings()
     WarcSearcherLogger.close_logging_file_handler()
     move_log_file_to_results_subdirectory()
+
 
 
 if __name__ == '__main__':
@@ -289,16 +201,21 @@ if __name__ == '__main__':
     read_config_ini_variables()
 
     # Create the results subdirectory in the output folder
-    create_results_output_subdirectory()
+    results_output_subdirectory = create_results_output_subdirectory()
 
-    # Create the regex and output txt file collections
-    regex_patterns_list, txt_file_dict = create_regex_and_output_txt_file_collections()
+    fileops.results_output_subdirectory = results_output_subdirectory
+
+    if config.settings["ZIP_FILES_WITH_MATCHES"]:
+        create_temp_directory_for_zip(results_output_subdirectory)
+
+    # Create the definitions list
+    definitions = create_regex_and_output_txt_file_collections()
 
     # Start the search
-    begin_search(regex_patterns_list, txt_file_dict)
+    begin_search(definitions)
 
-    if RESULTS_OUTPUT_SUBDIRECTORY != '':
-        WarcSearcherLogger.log_info(f"Results output to: {RESULTS_OUTPUT_SUBDIRECTORY}")
+    if results_output_subdirectory != '':
+        WarcSearcherLogger.log_info(f"Results output to: {results_output_subdirectory}")
 
     elapsedMinutes, elapsedSeconds = calculate_execution_time(start_time)
     WarcSearcherLogger.log_info(f"Finished searching. Elapsed time: {elapsedMinutes}m {elapsedSeconds}s")
