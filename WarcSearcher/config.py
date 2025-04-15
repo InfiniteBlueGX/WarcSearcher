@@ -1,6 +1,7 @@
 import configparser
 from validators import *
 
+
 settings = {
     "WARC_GZ_ARCHIVES_DIRECTORY": '',
     "SEARCH_QUERIES_DIRECTORY": '',
@@ -11,15 +12,21 @@ settings = {
     "TARGET_PROCESS_MEMORY": 1000000000
 }
 
+
 def read_config_ini_variables():
     """Reads the variables found in ther config.ini file after ensuring it exists."""
 
-    if not os.path.isfile('config.ini') or os.path.isfile('../config.ini'):
+    config_path = None
+    if os.path.isfile('config.ini'):
+        config_path = 'config.ini'
+    elif os.path.isfile('../config.ini'):
+        config_path = '../config.ini'
+    else:
         WarcSearcherLogger.log_error("config.ini file does not exist in the working directory or its parent.")
         sys.exit()
 
     parser = configparser.ConfigParser()
-    parser.read('config.ini')
+    parser.read(config_path)
 
     try:
         read_required_config_ini_variables(parser)
@@ -28,6 +35,8 @@ def read_config_ini_variables():
     except Exception as e:
         WarcSearcherLogger.log_error(f"Error reading the contents of the config.ini file: \n{e}")
         sys.exit()
+
+
 
 def read_required_config_ini_variables(parser):
     """Reads the required variables from the config.ini file, validates them, and sets them in the config dictionary."""
@@ -40,6 +49,7 @@ def read_required_config_ini_variables(parser):
         
     settings["RESULTS_OUTPUT_DIRECTORY"] = parser.get('REQUIRED', 'results_output_directory')
     validate_results_output_directory(settings["RESULTS_OUTPUT_DIRECTORY"])
+
 
 
 def read_optional_config_ini_variables(parser):
