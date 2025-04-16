@@ -77,9 +77,7 @@ def begin_search(definitions_list):
 def iterate_through_gz_files(gz_directory_path):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
 
-    if not gz_files:
-        WarcSearcherLogger.log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
-        sys.exit()
+    validate_gz_file_existence(gz_directory_path, gz_files)
 
     with ThreadPoolExecutor(max_workers=config.settings["MAX_ARCHIVE_READ_THREADS"]) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
@@ -148,7 +146,7 @@ def compile_regex_pattern(definition_file):
 
 
 
-def create_regex_and_output_txt_file_collections() -> list: 
+def create_regex_and_result_file_tuple_collection() -> list: 
     """
     
     """
@@ -164,10 +162,12 @@ def create_regex_and_output_txt_file_collections() -> list:
         if success:
             regex_patterns_list.append(regex_pattern)
             
-            output_filepath = create_results_txt_file_path(definition_file)
+            output_filepath = get_results_txt_file_path(definition_file)
             results_txt_files_dict[output_filepath] = output_filepath
+        else:
+            WarcSearcherLogger.log_warning(f"Regex pattern in {definition_file} was invalid and will not be used to search.")
 
-    validate_regex_patterns(regex_patterns_list)
+    verify_regex_patterns_exist(regex_patterns_list)
 
     return list(zip(results_txt_files_dict, regex_patterns_list))
 
@@ -175,10 +175,8 @@ def create_regex_and_output_txt_file_collections() -> list:
 
 def finish():
     """
-    Function to be called on program exit. Closes the logging file handler, moves reports errors/warnings.
-    
-    Args:
-        logging_handler: The logging file handler.
+    Function to be called on program exit. Responsible for logging errors and warnings, closing the logging file handler, 
+    and moving the log file to the results subdirectory if it was created.
     """
 
     WarcSearcherLogger.report_errors_and_warnings()
@@ -200,22 +198,20 @@ if __name__ == '__main__':
     # Read the config.ini file variables and store them as global variables
     read_config_ini_variables()
 
-    # Create the results subdirectory in the output folder
-    results_output_subdirectory = create_results_output_subdirectory()
-
-    fileops.results_output_subdirectory = results_output_subdirectory
+    # Create the results subdirectory in the output folder and set the fileops global to it
+    fileops.results_output_subdirectory = create_results_output_subdirectory()
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        create_temp_directory_for_zip(results_output_subdirectory)
+        create_temp_directory_for_zip(fileops.results_output_subdirectory)
 
     # Create the definitions list
-    definitions = create_regex_and_output_txt_file_collections()
+    definitions = create_regex_and_result_file_tuple_collection()
 
     # Start the search
     begin_search(definitions)
 
-    if results_output_subdirectory != '':
-        WarcSearcherLogger.log_info(f"Results output to: {results_output_subdirectory}")
+    if fileops.results_output_subdirectory != '':
+        WarcSearcherLogger.log_info(f"Results output to: {fileops.results_output_subdirectory}")
 
     elapsedMinutes, elapsedSeconds = calculate_execution_time(start_time)
     WarcSearcherLogger.log_info(f"Finished searching. Elapsed time: {elapsedMinutes}m {elapsedSeconds}s")

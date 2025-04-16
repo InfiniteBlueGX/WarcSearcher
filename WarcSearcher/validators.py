@@ -35,9 +35,15 @@ def validate_results_output_directory(results_output_directory):
         sys.exit()
 
 
-def validate_regex_patterns(regex_patterns_list: list):
+def validate_gz_file_existence(gz_directory_path, gz_files):
+    if not gz_files:
+        WarcSearcherLogger.log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
+        sys.exit()
+
+
+def verify_regex_patterns_exist(regex_patterns_list: list):
     """
-    Validate that at least one valid regex pattern exists.
+    Validate that at least one valid regex pattern exists in the provided list.
     If no valid patterns are found, log an error and exit the program.
     """
     if not regex_patterns_list:

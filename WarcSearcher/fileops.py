@@ -27,9 +27,9 @@ def create_results_output_subdirectory():
 
 
 
-def create_results_txt_file_path(definition_file) -> str:
+def get_results_txt_file_path(definition_file) -> str:
     """
-    Creates a file path for the results .txt file based on the definition file name. Returns a string path to the output file
+    Returns a file path for the results .txt file based on the definition file name.
     """
     filename_without_extension = os.path.splitext(os.path.basename(definition_file))[0]
     output_filename = f"{filename_without_extension}_results.txt"
