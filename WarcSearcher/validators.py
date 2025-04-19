@@ -2,6 +2,7 @@ import glob
 import os
 import sys
 
+from helpers import get_total_ram_bytes_rounded
 import logger
 from logger import *
 
@@ -17,6 +18,7 @@ def validate_warc_gz_archives_directory(warc_gz_archives_directory):
         sys.exit()
 
 
+
 def validate_search_definitions_directory(search_definitions_directory):
     """Validates that the directory containing the regex definition .txt files exists and has .txt files present."""
 
@@ -28,6 +30,7 @@ def validate_search_definitions_directory(search_definitions_directory):
         sys.exit()
 
 
+
 def validate_results_output_directory(results_output_directory):
     """Validates that the directory to output the search results to exists."""
 
@@ -36,10 +39,12 @@ def validate_results_output_directory(results_output_directory):
         sys.exit()
 
 
+
 def validate_gz_file_existence(gz_directory_path, gz_files):
     if not gz_files:
         logger.log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
+
 
 
 def verify_regex_patterns_exist(regex_patterns_list: list):
@@ -50,3 +55,55 @@ def verify_regex_patterns_exist(regex_patterns_list: list):
     if not regex_patterns_list:
         logger.log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
         sys.exit()
+
+
+
+def validate_and_get_max_search_processes(parsed_value):
+    """Validates and returns the maximum number of search processes."""
+
+    # Calculate total logical processors available on the system
+    total_logical_processors = os.cpu_count()
+
+    try:
+        max_search_processes = (
+            total_logical_processors if parsed_value == "none" 
+            else int(parsed_value)
+        )
+
+        if max_search_processes <= 0 or max_search_processes > total_logical_processors:
+            raise ValueError()
+
+    except ValueError:
+        logger.log_error(
+            f"Invalid value for max_concurrent_search_processes in config.ini: {parsed_value}. "
+            f"Setting number of search processes to maximum logical processors available on the PC."
+        )
+        max_search_processes = total_logical_processors
+
+    return max_search_processes
+
+
+
+def validate_and_get_target_process_memory(parsed_value):
+    """Validates and returns the target process memory in bytes."""
+
+    # Calculate total machine RAM in bytes, rounded down to nearest GB
+    total_machine_ram_in_bytes = get_total_ram_bytes_rounded()
+
+    try:
+        target_process_ram_in_bytes = (
+            total_machine_ram_in_bytes if parsed_value == "none" 
+            else int(parsed_value)
+        )
+
+        if target_process_ram_in_bytes <= 0 or target_process_ram_in_bytes > total_machine_ram_in_bytes:
+            raise ValueError()
+
+    except ValueError:
+        logger.log_error(
+            f"Invalid value for target_process_memory_bytes in config.ini: {parsed_value}. "
+            f"Setting target process memory to maximum RAM available on the PC."
+        )
+        target_process_ram_in_bytes = total_machine_ram_in_bytes
+
+    return target_process_ram_in_bytes

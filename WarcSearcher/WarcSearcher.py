@@ -75,7 +75,8 @@ def iterate_through_gz_files(gz_directory_path):
 
     validate_gz_file_existence(gz_directory_path, gz_files)
 
-    # Set up 4 threads to read the gz files concurrently. Each thread will open a gz file and put records into the search queue.
+    # Set up 4 threads to read the gz files concurrently - one thread per gz file. 
+    # Each thread will open a gz file and put records into the search queue.
     # TODO experiment with different values with different warc files
     with ThreadPoolExecutor(max_workers = 4) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}

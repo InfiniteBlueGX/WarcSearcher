@@ -3,6 +3,8 @@ import glob
 import os
 import time
 import zipfile
+
+import psutil
 import logger
 
 from io import StringIO
@@ -153,3 +155,9 @@ def calculate_execution_time(start_time: float):
     minutes, seconds = divmod(execution_time, 60)
 
     return int(minutes), round(seconds, 2)
+
+
+def get_total_ram_bytes_rounded() -> int:
+    total_ram = psutil.virtual_memory().total
+    # Round down to the nearest GB and convert back to bytes
+    return (total_ram // (1024 ** 3)) * (1024 ** 3)
