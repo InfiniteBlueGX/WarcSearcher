@@ -13,7 +13,6 @@ def is_file_binary(file_data):
     return bool(first_1024_chars.translate(None, text_chars))
 
 
-
 def get_total_memory_in_use(process):
     """Returns the total memory in use by the process and its subprocesses."""
     mem_info = process.memory_info()
@@ -25,7 +24,6 @@ def get_total_memory_in_use(process):
         resident_set_size_memory += mem_info.rss
 
     return resident_set_size_memory
-
 
 
 def get_total_ram_bytes_rounded() -> int:

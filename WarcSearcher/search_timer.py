@@ -9,14 +9,17 @@ class SearchTimer:
         self.end_time = None
         self.total_time = None
 
+
     def start_timer(self):
         """Initializes the timer to the current time."""
         self.start_time = time.time()
+
 
     def end_timer(self):
         """Ends the timer and calculates the total time."""
         self.end_time = time.time()
         self.total_time = self.end_time - self.start_time
+
 
     def log_execution_time(self):
         """Logs the total execution time in a formatted string."""

@@ -31,7 +31,6 @@ def read_config_ini_variables():
         sys.exit()
 
 
-
 def get_config_ini_path():
     if os.path.isfile('config.ini'):
         config_path = 'config.ini'
@@ -41,7 +40,6 @@ def get_config_ini_path():
         logger.log_error("config.ini file does not exist in the working directory or its parent.")
         sys.exit()
     return config_path
-
 
 
 def read_required_config_ini_variables(parser):
@@ -55,7 +53,6 @@ def read_required_config_ini_variables(parser):
         
     settings["RESULTS_OUTPUT_DIRECTORY"] = parser.get('REQUIRED', 'results_output_directory')
     validate_results_output_directory(settings["RESULTS_OUTPUT_DIRECTORY"])
-
 
 
 def read_optional_config_ini_variables(parser):

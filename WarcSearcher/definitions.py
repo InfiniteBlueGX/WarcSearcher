@@ -14,7 +14,6 @@ def get_definition_txt_files_list():
     return glob.glob(os.path.join(config.settings["SEARCH_DEFINITIONS_DIRECTORY"], '*.txt'))
 
 
-
 def compile_regex_pattern_from_definition_file(definition_file):
     """Reads a regex pattern from a definition file and compiles it into a regex object."""
     
@@ -33,7 +32,6 @@ def compile_regex_pattern_from_definition_file(definition_file):
         logger.log_error(f"Error reading file {definition_file}: {str(e)}")
         return None, False
     
-
 
 def create_associated_definition_files_regex_list() -> list: 
     """Creates a list of tuples that associates the regex patterns with their respective results output .txt file paths."""

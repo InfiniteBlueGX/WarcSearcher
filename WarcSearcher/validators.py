@@ -18,7 +18,6 @@ def validate_warc_gz_archives_directory(warc_gz_archives_directory):
         sys.exit()
 
 
-
 def validate_search_definitions_directory(search_definitions_directory):
     """Validates that the directory containing the regex definition .txt files exists and has .txt files present."""
 
@@ -30,7 +29,6 @@ def validate_search_definitions_directory(search_definitions_directory):
         sys.exit()
 
 
-
 def validate_results_output_directory(results_output_directory):
     """Validates that the directory to output the search results to exists."""
 
@@ -39,12 +37,10 @@ def validate_results_output_directory(results_output_directory):
         sys.exit()
 
 
-
 def validate_gz_file_existence(gz_directory_path, gz_files):
     if not gz_files:
         logger.log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()
-
 
 
 def verify_regex_patterns_exist(regex_patterns_list: list):
@@ -55,7 +51,6 @@ def verify_regex_patterns_exist(regex_patterns_list: list):
     if not regex_patterns_list:
         logger.log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
         sys.exit()
-
 
 
 def validate_and_get_max_search_processes(parsed_value):
@@ -81,7 +76,6 @@ def validate_and_get_max_search_processes(parsed_value):
         max_search_processes = total_logical_processors
 
     return max_search_processes
-
 
 
 def validate_and_get_target_ram_usage(parsed_value):

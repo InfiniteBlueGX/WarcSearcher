@@ -66,7 +66,6 @@ def begin_search(definitions_list):
         shutil.rmtree(tempdir)
 
 
-
 def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_files_with_matches):
     """This function is intended to be run on any number of subprocesses to search for regex matches in the gz files."""
     print(f"Starting search process #{os.getpid()}")
@@ -112,11 +111,10 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_
                 matches_contents = find_regex_matches(record_obj.contents.decode('utf-8', 'ignore'), regex)
 
             if matches_name or matches_contents:
-                write_matches_to_output_buffer(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
+                write_matched_file_to_result(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
                 if zip_files_with_matches:
                     zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
                     write_file_with_match_to_zip(record_obj.contents, record_obj.name, zip_archives[zip_path])
-
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -132,7 +130,6 @@ def iterate_through_gz_files(gz_directory_path):
 
         for future in as_completed(tasks):
             future.result()
-
 
 
 def open_warc_gz_file(gz_file_path):
@@ -162,7 +159,6 @@ def open_warc_gz_file(gz_file_path):
                         time.sleep(10)
     except Exception as e:
         logger.log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
-
 
 
 def finish():

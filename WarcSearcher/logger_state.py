@@ -9,6 +9,7 @@ class LoggerState:
         self.warning_count = 0
         self.file_handler = None
     
+
     def initialize_logging_to_file(self):
         """Initialize logging to a output_log.log file in the current working directory."""
         working_directory = os.getcwd()
@@ -27,6 +28,7 @@ class LoggerState:
             force=True
         )
     
+    
     def close_logging_file_handler(self):
         """Close the file handler and remove it from the logger."""
         if self.file_handler:
@@ -34,13 +36,16 @@ class LoggerState:
             self.file_handler.close()
             self.file_handler = None
     
+
     def increment_error(self):
         """Increment the error count and log the error."""
         self.error_count += 1
     
+
     def increment_warning(self):
         """Increment the warning count and log the warning."""
         self.warning_count += 1
+    
     
     def get_final_report(self):
         """Return a summary of the total errors and warnings."""

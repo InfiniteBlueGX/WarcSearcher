@@ -20,14 +20,12 @@ def create_results_output_subdirectory():
     return results_output_subdirectory
 
 
-
 def get_results_txt_file_path(definition_file_path) -> str:
     """Returns a file path for the results text file based on the definition file name."""
-    
+
     filename_without_extension = os.path.splitext(os.path.basename(definition_file_path))[0]
     output_filename = f"{filename_without_extension}_results.txt"
     return os.path.join(results_output_subdirectory, output_filename)
-
 
 
 def initialize_result_txt_files(definitions_list):
@@ -50,7 +48,6 @@ def get_result_txt_file_write_locks(manager, result_txt_file_paths):
     return txt_locks
 
 
-
 def write_result_file_header(output_file, txt_file_path, regex):
     """Writes the header for the results .txt file."""
 
@@ -61,26 +58,26 @@ def write_result_file_header(output_file, txt_file_path, regex):
     output_file.write('___________________________________________________________________\n\n')
 
 
+def write_matched_file_to_result(output_buffer, matches_list_name, matches_list_contents, root_gz_file, containing_file):
+    """Writes the matched file information to the output buffer."""
 
-def write_matches_to_output_buffer(output_buffer, matches_list_name, matches_list_contents, root_gz_file, containing_file):
     output_buffer.write(f'[Archive: {root_gz_file}]\n')
     output_buffer.write(f'[File: {containing_file}]\n\n')
 
-    write_matches(output_buffer, matches_list_name, 'file name')
-    write_matches(output_buffer, matches_list_contents, 'file contents')
+    write_matches_to_result(output_buffer, matches_list_name, 'file name')
+    write_matches_to_result(output_buffer, matches_list_contents, 'file contents')
 
     output_buffer.write('___________________________________________________________________\n\n')
 
 
-
-def write_matches(output_buffer, matches_list, match_type):
+def write_matches_to_result(output_buffer, matches_list, match_type):
     """Writes the matches found to the output buffer."""
+
     if matches_list:
         unique_matches_set = [match for match in set(matches_list)]
         output_buffer.write(f'[Matches found in {match_type}: {len(matches_list)} ({len(matches_list)-len(unique_matches_set)} duplicates omitted)]\n')
         for i, match in enumerate(unique_matches_set, start=1):
             output_buffer.write(f'[Match #{i} in {match_type}]\n\n"{match}"\n\n')
-
 
 
 def move_log_file_to_results_subdirectory():
