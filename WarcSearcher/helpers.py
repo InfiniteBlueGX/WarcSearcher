@@ -1,11 +1,9 @@
 import datetime
 import glob
 import os
-import time
 import zipfile
 
 from utilities import *
-import logger
 
 from io import StringIO
 
@@ -114,10 +112,3 @@ def write_file_with_match_to_zip(file_data, file_name, zip_archive):
     reformatted_file_name = sanitize_file_name(file_name)
     if reformatted_file_name not in zip_archive.namelist():
         zip_archive.writestr(reformatted_file_name, file_data)
-
-
-
-def monitor_remaining_queue_items(queue, stop_event):
-    while not stop_event.is_set():
-        logger.log_info(f"Remaining items to search: {queue.qsize()}")
-        time.sleep(5)

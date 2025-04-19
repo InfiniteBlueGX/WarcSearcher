@@ -45,16 +45,6 @@ def begin_search(definitions_list):
 
         logger.log_info("Waiting on search processes to finish - This may take a while, please wait...")
 
-        # With no more records to read from the WARCs, put the main process to work with searching and monitor the queue on a background thread
-        # stop_event = threading.Event()
-        # monitoring_thread = threading.Thread(target=monitor_remaining_queue_items, args=(SEARCH_QUEUE, stop_event))
-        # monitoring_thread.start()
-
-        # find_and_write_matches_subprocess(SEARCH_QUEUE, definitions_list, txt_locks, config.settings["ZIP_FILES_WITH_MATCHES"])
-        # wait(futures)
-
-        # stop_event.set()
-        # monitoring_thread.join()
         wait(futures)
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
