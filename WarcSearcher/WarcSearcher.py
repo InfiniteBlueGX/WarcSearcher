@@ -37,6 +37,7 @@ def begin_search(definitions_list):
 
         iterate_through_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
 
+        # Put a None object in the queue for each process to signal them to stop searching
         for _ in range(config.settings["MAX_SEARCH_PROCESSES"]):
             SEARCH_QUEUE.put(None)
 
@@ -74,7 +75,9 @@ def iterate_through_gz_files(gz_directory_path):
 
     validate_gz_file_existence(gz_directory_path, gz_files)
 
-    with ThreadPoolExecutor(max_workers=config.settings["MAX_ARCHIVE_READ_THREADS"]) as executor:
+    # Set up 4 threads to read the gz files concurrently. Each thread will open a gz file and put records into the search queue.
+    # TODO experiment with different values with different warc files
+    with ThreadPoolExecutor(max_workers = 4) as executor:
         tasks = {executor.submit(open_warc_gz_file, gz_file_path) for gz_file_path in gz_files}
 
         for future in as_completed(tasks):

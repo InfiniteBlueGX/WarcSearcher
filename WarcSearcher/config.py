@@ -17,14 +17,7 @@ settings = {
 def read_config_ini_variables():
     """Reads the variables found in ther config.ini file after ensuring it exists."""
 
-    config_path = None
-    if os.path.isfile('config.ini'):
-        config_path = 'config.ini'
-    elif os.path.isfile('../config.ini'):
-        config_path = '../config.ini'
-    else:
-        logger.log_error("config.ini file does not exist in the working directory or its parent.")
-        sys.exit()
+    config_path = get_config_ini_path()
 
     parser = configparser.ConfigParser()
     parser.read(config_path)
@@ -36,6 +29,18 @@ def read_config_ini_variables():
     except Exception as e:
         logger.log_error(f"Error reading the contents of the config.ini file: \n{e}")
         sys.exit()
+
+
+
+def get_config_ini_path():
+    if os.path.isfile('config.ini'):
+        config_path = 'config.ini'
+    elif os.path.isfile('../config.ini'):
+        config_path = '../config.ini'
+    else:
+        logger.log_error("config.ini file does not exist in the working directory or its parent.")
+        sys.exit()
+    return config_path
 
 
 
@@ -58,9 +63,9 @@ def read_optional_config_ini_variables(parser):
 
     settings["ZIP_FILES_WITH_MATCHES"] = parser.getboolean('OPTIONAL', 'zip_files_with_matches')
 
-    # TODO maybe remove this and just use the default value of 4 for max_archive_read_threads.
-    threads_item = parser.get('OPTIONAL', 'max_concurrent_archive_read_threads').lower()
-    settings["MAX_ARCHIVE_READ_THREADS"] = min(32, os.cpu_count() + 4) if threads_item == "none" else int(threads_item)
+    # Defaults to Python's default of logical processor count + 4 or 32, whichever is lower
+    # threads_item = parser.get('OPTIONAL', 'max_concurrent_archive_read_threads').lower()
+    # settings["MAX_ARCHIVE_READ_THREADS"] = min(32, os.cpu_count() + 4) if threads_item == "none" else int(threads_item)
 
     processes_item = parser.get('OPTIONAL', 'max_concurrent_search_processes').lower()
     settings["MAX_SEARCH_PROCESSES"] = os.cpu_count() if processes_item == "none" else int(processes_item)
