@@ -8,6 +8,7 @@ from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
 from multiprocessing import Manager
 
+from zip_files import *
 from search_timer import SearchTimer
 import config
 import fileops
@@ -26,7 +27,7 @@ searchTimer = SearchTimer()
 def begin_search(definitions_list):
     manager = Manager()
 
-    txt_locks = setup_txt_locks(manager, definitions_list)
+    txt_locks = initialize_result_txt_files_and_locks(manager, definitions_list)
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
@@ -51,7 +52,7 @@ def begin_search(definitions_list):
         logger.log_info("Finalizing the zip archives...")
         tempdir = os.path.join(fileops.results_output_subdirectory, "temp")
         with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(merge_zip_files, 
+            futures = {executor.submit(merge_zip_archives, 
                                        tempdir,
                                        fileops.results_output_subdirectory, 
                                        os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path, _ in definitions_list}
@@ -192,7 +193,7 @@ if __name__ == '__main__':
     fileops.results_output_subdirectory = create_results_output_subdirectory()
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        create_temp_directory_for_zip(fileops.results_output_subdirectory)
+        create_temp_directory_for_zip_archives(fileops.results_output_subdirectory)
 
     # Create the definitions list
     definitions = create_regex_and_result_file_tuple_collection()

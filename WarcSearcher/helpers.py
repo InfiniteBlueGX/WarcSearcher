@@ -1,8 +1,8 @@
-import datetime
-import glob
 import os
 import zipfile
 
+from zip_files import write_file_with_match_to_zip
+from fileops import write_matches_to_txt_output_buffer
 from utilities import *
 
 from io import StringIO
@@ -62,53 +62,3 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_
                 if zip_files_with_matches:
                     zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
                     write_file_with_match_to_zip(record_obj.contents, record_obj.name, zip_archives[zip_path])
-
-
-def merge_zip_files(containing_dir, output_dir, definition_prefix):
-    combined_zip = os.path.join(output_dir, f"{definition_prefix}.zip")
-    added_files = set()
-
-    for subdir, _, _ in os.walk(containing_dir):
-        for file in glob.glob(os.path.join(subdir, f"{definition_prefix}*.zip")):
-            with zipfile.ZipFile(file, 'r') as z1:
-                with zipfile.ZipFile(combined_zip, 'a', compression=zipfile.ZIP_DEFLATED) as z2:
-                    for file in z1.namelist():
-                        if file not in added_files:
-                            z2.writestr(file, z1.read(file))
-                            added_files.add(file)
-
-
-def initialize_txt_output_file(output_file, txt_file_path, regex):
-    timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
-    output_file.write(f'[{os.path.basename(txt_file_path)}]\n')
-    output_file.write(f'[Created: {timestamp}]\n\n')
-    output_file.write(f'[Regex used]\n{regex.pattern}\n\n')
-    output_file.write('___________________________________________________________________\n\n')
-
-
-def write_matches_to_txt_output_buffer(output_buffer, matches_list_name, matches_list_contents, root_gz_file, containing_file):
-    output_buffer.write(f'[Archive: {root_gz_file}]\n')
-    output_buffer.write(f'[File: {containing_file}]\n\n')
-
-    write_matches(output_buffer, matches_list_name, 'file name')
-    write_matches(output_buffer, matches_list_contents, 'file contents')
-
-    output_buffer.write('___________________________________________________________________\n\n')
-
-
-def write_matches(output_buffer, matches_list, match_type):
-    if matches_list:
-        unique_matches_set = [match for match in set(matches_list)]
-        output_buffer.write(f'[Matches found in {match_type}: {len(matches_list)} ({len(matches_list)-len(unique_matches_set)} duplicates omitted)]\n')
-        for i, match in enumerate(unique_matches_set, start=1):
-            output_buffer.write(f'[Match #{i} in {match_type}]\n\n"{match}"\n\n')
-
-
-def find_regex_matches(input_string, regex_pattern):
-    return [match.group() for match in regex_pattern.finditer(input_string)]
-
-
-def write_file_with_match_to_zip(file_data, file_name, zip_archive):
-    reformatted_file_name = sanitize_file_name(file_name)
-    if reformatted_file_name not in zip_archive.namelist():
-        zip_archive.writestr(reformatted_file_name, file_data)

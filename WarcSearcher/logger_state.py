@@ -35,10 +35,13 @@ class LoggerState:
             self.file_handler = None
     
     def increment_error(self):
+        """Increment the error count and log the error."""
         self.error_count += 1
     
     def increment_warning(self):
+        """Increment the warning count and log the warning."""
         self.warning_count += 1
     
     def get_final_report(self):
+        """Return a summary of the total errors and warnings."""
         return f"Errors: {self.error_count}, Warnings: {self.warning_count}"
