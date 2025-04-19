@@ -2,10 +2,10 @@ import glob
 import os
 import re
 
-from validators import verify_regex_patterns_exist
-from results import get_results_txt_file_path
-import logger
 import config
+import logger
+from results import get_results_txt_file_path
+from validators import verify_regex_patterns_exist
 
 
 def get_definition_txt_files_list():

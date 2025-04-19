@@ -2,9 +2,9 @@ import glob
 import os
 import sys
 
-from utilities import get_total_ram_bytes_rounded
 import logger
 from logger import *
+from utilities import get_total_ram_bytes_rounded
 
 
 def validate_warc_gz_archives_directory(warc_gz_archives_directory):

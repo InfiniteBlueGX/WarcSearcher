@@ -1,7 +1,7 @@
 import configparser
+
 import logger
 from validators import *
-
 
 settings = {
     "WARC_GZ_ARCHIVES_DIRECTORY": '',

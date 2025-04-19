@@ -1,24 +1,23 @@
 import atexit
 import glob
 import os
-import re
 import shutil
 import time
-from definitions import create_associated_definition_files_regex_list
-import results
 from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
 from io import StringIO
 from multiprocessing import Manager
 
-from results import *
 import config
 import logger
 import psutil
+import results
 from config import *
+from definitions import create_associated_definition_files_regex_list
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
 from record_data import RecordData
+from results import *
 from search_timer import SearchTimer
 from utilities import *
 from validators import *

@@ -2,6 +2,7 @@ import time
 
 import logger
 
+
 class SearchTimer:
     def __init__(self):
         self.start_time = None

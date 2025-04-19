@@ -2,8 +2,8 @@ import datetime
 import os
 import shutil
 
-import config, logger
-
+import config
+import logger
 
 results_output_subdirectory = ''
 
