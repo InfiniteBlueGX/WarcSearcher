@@ -13,11 +13,13 @@ def create_results_output_subdirectory():
 
     results_subdirectory_name = "WarcSearcher_Results_" + datetime.datetime.now().strftime('%m-%d-%y_%H_%M_%S')
     
-    results_output_subdirectory = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
-    os.makedirs(results_output_subdirectory)
+    results_output_subdirectory_temp = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
+    os.makedirs(results_output_subdirectory_temp)
 
-    logger.log_info(f"Results output folder created: {results_output_subdirectory}")
-    return results_output_subdirectory
+    logger.log_info(f"Results output folder created: {results_output_subdirectory_temp}")
+
+    global results_output_subdirectory
+    results_output_subdirectory = results_output_subdirectory_temp
 
 
 def get_results_txt_file_path(definition_file_path) -> str:

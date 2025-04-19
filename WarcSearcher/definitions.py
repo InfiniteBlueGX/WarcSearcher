@@ -34,7 +34,7 @@ def compile_regex_pattern_from_definition_file(definition_file):
     
 
 def create_associated_definition_files_regex_list() -> list: 
-    """Creates a list of tuples that associates the regex patterns with their respective results output .txt file paths."""
+    """Creates a list that associates the regex patterns with their respective results output .txt file paths."""
 
     regex_patterns_list = []
     results_txt_files_dict = {}

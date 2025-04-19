@@ -9,7 +9,6 @@ from io import StringIO
 from multiprocessing import Manager
 
 import config
-import logger
 import psutil
 import results
 from config import *
@@ -48,12 +47,12 @@ def begin_search(definitions_list):
         for _ in range(config.settings["MAX_SEARCH_PROCESSES"]):
             SEARCH_QUEUE.put(None)
 
-        logger.log_info("Waiting on search processes to finish - This may take a while, please wait...")
+        log_info("Waiting on search processes to finish - This may take a while, please wait...")
 
         wait(futures)
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        logger.log_info("Finalizing the zip archives...")
+        log_info("Finalizing the zip archives...")
         tempdir = os.path.join(results.results_output_subdirectory, "temp")
         with ThreadPoolExecutor() as executor:
             futures = {executor.submit(merge_zip_archives, 
@@ -134,12 +133,12 @@ def iterate_through_gz_files(gz_directory_path):
 
 def open_warc_gz_file(gz_file_path):
     gz_file_stream = GZipStream(FileStream(gz_file_path, 'rb'))
-    logger.log_info(f"Beginning to process {gz_file_path}")
+    log_info(f"Beginning to process {gz_file_path}")
 
     try:
         records = ArchiveIterator(gz_file_stream, strict_mode=False)
         if not any(records):
-            logger.log_warning(f"No WARC records found in {gz_file_path}")
+            log_warning(f"No WARC records found in {gz_file_path}")
             return
 
         records_searched = 0
@@ -152,13 +151,13 @@ def open_warc_gz_file(gz_file_path):
                 SEARCH_QUEUE.put(record_obj)
 
                 if records_searched % 1000 == 0:
-                    logger.log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
+                    log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
                     process = psutil.Process()
                     while get_total_memory_in_use(process) > config.settings["TARGET_RAM_USAGE_BYTES"]:
-                        logger.log_warning(f"RAM usage is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
+                        log_warning(f"RAM usage is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
                         time.sleep(10)
     except Exception as e:
-        logger.log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
+        log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
 
 def finish():
@@ -166,8 +165,8 @@ def finish():
     Function to be called on program exit. Responsible for logging errors and warnings, closing the logging file handler, 
     and moving the log file to the results subdirectory if it was created.
     """
-    logger.log_total_errors_and_warnings()
-    logger.close_logging()
+    log_total_errors_and_warnings()
+    close_logging()
     move_log_file_to_results_subdirectory()
 
 
@@ -177,7 +176,7 @@ if __name__ == '__main__':
     searchTimer.start_timer()
 
     # Initialize logging - create a log file in the working directory
-    logger.initialize_logging()
+    initialize_logging()
 
     # Register the finish function to be automatically called on program exit
     atexit.register(lambda: finish())
@@ -186,7 +185,7 @@ if __name__ == '__main__':
     read_config_ini_variables()
 
     # Create the results subdirectory in the output folder and set the fileops global to it
-    results.results_output_subdirectory = create_results_output_subdirectory()
+    create_results_output_subdirectory()
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
         create_temp_directory_for_zip_archives(results.results_output_subdirectory)
@@ -198,7 +197,7 @@ if __name__ == '__main__':
     begin_search(definitions)
 
     if results.results_output_subdirectory != '':
-        logger.log_info(f"Results output to: {results.results_output_subdirectory}")
+        log_info(f"Results output to: {results.results_output_subdirectory}")
 
     # Stop the execution timer and log the total execution time
     searchTimer.end_timer()
