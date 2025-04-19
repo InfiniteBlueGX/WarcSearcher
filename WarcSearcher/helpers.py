@@ -4,7 +4,7 @@ import os
 import time
 import zipfile
 
-import psutil
+from utilities import *
 import logger
 
 from io import StringIO
@@ -111,53 +111,13 @@ def find_regex_matches(input_string, regex_pattern):
 
 
 def write_file_with_match_to_zip(file_data, file_name, zip_archive):
-    reformatted_file_name = remove_web_prefixes(file_name)
+    reformatted_file_name = sanitize_file_name(file_name)
     if reformatted_file_name not in zip_archive.namelist():
         zip_archive.writestr(reformatted_file_name, file_data)
 
-
-def is_file_binary(file_data):
-    # Set of characters typically found in text files
-    text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
-    first_1024_chars = file_data[:1024]
-    return bool(first_1024_chars.translate(None, text_chars))
-
-
-def remove_web_prefixes(file_name):
-    web_prefixes_removed = file_name.replace('http://', '').replace('https://', '').replace('www.', '')
-    return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))
-
-
-def get_total_memory_usage(process):
-    mem_info = process.memory_info()
-    resident_set_size_memory = mem_info.rss
-
-    subprocesses = process.children(recursive=True)
-    for subprocess in subprocesses:
-        mem_info = subprocess.memory_info()
-        resident_set_size_memory += mem_info.rss
-
-    return resident_set_size_memory
 
 
 def monitor_remaining_queue_items(queue, stop_event):
     while not stop_event.is_set():
         logger.log_info(f"Remaining items to search: {queue.qsize()}")
         time.sleep(5)
-        
-
-def calculate_execution_time(start_time: float):
-    """
-    Calculates the search execution time based on the provided start time.
-    """
-
-    execution_time = time.time() - start_time
-    minutes, seconds = divmod(execution_time, 60)
-
-    return int(minutes), round(seconds, 2)
-
-
-def get_total_ram_bytes_rounded() -> int:
-    total_ram = psutil.virtual_memory().total
-    # Round down to the nearest GB and convert back to bytes
-    return (total_ram // (1024 ** 3)) * (1024 ** 3)

@@ -8,6 +8,7 @@ from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
 from multiprocessing import Manager
 
+from search_timer import SearchTimer
 import config
 import fileops
 import logger
@@ -20,6 +21,7 @@ from helpers import *
 from validators import *
 
 SEARCH_QUEUE = None
+searchTimer = SearchTimer()
 
 def begin_search(definitions_list):
     manager = Manager()
@@ -108,7 +110,7 @@ def open_warc_gz_file(gz_file_path):
                 if records_searched % 1000 == 0:
                     logger.log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
                     process = psutil.Process()
-                    while get_total_memory_usage(process) > config.settings["TARGET_RAM_USAGE_BYTES"]:
+                    while get_total_memory_in_use(process) > config.settings["TARGET_RAM_USAGE_BYTES"]:
                         logger.log_warning(f"RAM usage is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
                         time.sleep(10)
     except Exception as e:
@@ -177,18 +179,18 @@ def finish():
     Function to be called on program exit. Responsible for logging errors and warnings, closing the logging file handler, 
     and moving the log file to the results subdirectory if it was created.
     """
-    logger.log_info(logger_state.get_final_report())
-    logger_state.close_logging_file_handler()
+    logger.log_total_errors_and_warnings()
+    logger.close_logging()
     move_log_file_to_results_subdirectory()
 
 
 
 if __name__ == '__main__':
-    # Store the start time
-    start_time = time.time()
+    # Start the execution timer
+    searchTimer.start_timer()
 
-    # Initialize logging, create a log file in the working directory
-    logger_state.initialize_logging_to_file()
+    # Initialize logging - create a log file in the working directory
+    logger.initialize_logging()
 
     # Register the finish function to be automatically called on program exit
     atexit.register(lambda: finish())
@@ -211,5 +213,6 @@ if __name__ == '__main__':
     if fileops.results_output_subdirectory != '':
         logger.log_info(f"Results output to: {fileops.results_output_subdirectory}")
 
-    elapsedMinutes, elapsedSeconds = calculate_execution_time(start_time)
-    logger.log_info(f"Finished searching. Elapsed time: {elapsedMinutes}m {elapsedSeconds}s")
+    # Stop the execution timer and log the total execution time
+    searchTimer.end_timer()
+    searchTimer.log_execution_time()
