@@ -3,9 +3,9 @@ import glob
 import os
 import time
 import zipfile
-from io import StringIO
+import logger
 
-from logger import *
+from io import StringIO
 
 class RecordData:
   def __init__(self, root_gz_file, name, contents):
@@ -140,7 +140,7 @@ def get_total_memory_usage(process):
 
 def monitor_remaining_queue_items(queue, stop_event):
     while not stop_event.is_set():
-        WarcSearcherLogger.log_info(f"Remaining items to search: {queue.qsize()}")
+        logger.log_info(f"Remaining items to search: {queue.qsize()}")
         time.sleep(5)
         
 

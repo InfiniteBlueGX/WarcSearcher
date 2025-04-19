@@ -3,28 +3,23 @@ import glob
 import os
 import re
 import shutil
-import sys
-import threading
 import time
 from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
 from multiprocessing import Manager
-import fileops
-import config
 
+import config
+import fileops
+import logger
 import psutil
+from config import *
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
-
-from validators import *
-from helpers import *
-from logger import *
-from config import *
 from fileops import *
-
+from helpers import *
+from validators import *
 
 SEARCH_QUEUE = None
-
 
 def begin_search(definitions_list):
     manager = Manager()
@@ -45,7 +40,7 @@ def begin_search(definitions_list):
         for _ in range(config.settings["MAX_SEARCH_PROCESSES"]):
             SEARCH_QUEUE.put(None)
 
-        WarcSearcherLogger.log_info("Waiting on search processes to finish - This may take a while, please wait...")
+        logger.log_info("Waiting on search processes to finish - This may take a while, please wait...")
 
         # With no more records to read from the WARCs, put the main process to work with searching and monitor the queue on a background thread
         # stop_event = threading.Event()
@@ -60,7 +55,7 @@ def begin_search(definitions_list):
         wait(futures)
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        WarcSearcherLogger.log_info("Finalizing the zip archives...")
+        logger.log_info("Finalizing the zip archives...")
         tempdir = os.path.join(fileops.results_output_subdirectory, "temp")
         with ThreadPoolExecutor() as executor:
             futures = {executor.submit(merge_zip_files, 
@@ -89,12 +84,12 @@ def iterate_through_gz_files(gz_directory_path):
 
 def open_warc_gz_file(gz_file_path):
     gz_file_stream = GZipStream(FileStream(gz_file_path, 'rb'))
-    WarcSearcherLogger.log_info(f"Beginning to process {gz_file_path}")
+    logger.log_info(f"Beginning to process {gz_file_path}")
 
     try:
         records = ArchiveIterator(gz_file_stream, strict_mode=False)
         if not any(records):
-            WarcSearcherLogger.log_warning(f"No WARC records found in {gz_file_path}")
+            logger.log_warning(f"No WARC records found in {gz_file_path}")
             return
 
         records_searched = 0
@@ -107,13 +102,13 @@ def open_warc_gz_file(gz_file_path):
                 SEARCH_QUEUE.put(record_obj)
 
                 if records_searched % 1000 == 0:
-                    WarcSearcherLogger.log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
+                    logger.log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
                     process = psutil.Process()
                     while get_total_memory_usage(process) > config.settings["TARGET_PROCESS_MEMORY"]:
-                        WarcSearcherLogger.log_warning(f"Process memory is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
+                        logger.log_warning(f"Process memory is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
                         time.sleep(10)
     except Exception as e:
-        WarcSearcherLogger.log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
+        logger.log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
 
 
 
@@ -137,11 +132,11 @@ def compile_regex_pattern(definition_file):
             regex_pattern = re.compile(raw_regex, re.IGNORECASE)
             return regex_pattern, True
         except re.error:
-            WarcSearcherLogger.log_error(f"Invalid regular expression found in {definition_file}")
+            logger.log_error(f"Invalid regular expression found in {definition_file}")
             return None, False
             
     except IOError as e:
-        WarcSearcherLogger.log_error(f"Error reading file {definition_file}: {str(e)}")
+        logger.log_error(f"Error reading file {definition_file}: {str(e)}")
         return None, False
 
 
@@ -165,7 +160,7 @@ def create_regex_and_result_file_tuple_collection() -> list:
             output_filepath = get_results_txt_file_path(definition_file)
             results_txt_files_dict[output_filepath] = output_filepath
         else:
-            WarcSearcherLogger.log_warning(f"Regex pattern in {definition_file} was invalid and will not be used to search.")
+            logger.log_warning(f"Regex pattern in {definition_file} was invalid and will not be used to search.")
 
     verify_regex_patterns_exist(regex_patterns_list)
 
@@ -178,9 +173,8 @@ def finish():
     Function to be called on program exit. Responsible for logging errors and warnings, closing the logging file handler, 
     and moving the log file to the results subdirectory if it was created.
     """
-
-    WarcSearcherLogger.report_errors_and_warnings()
-    WarcSearcherLogger.close_logging_file_handler()
+    logger.log_info(logger_state.get_final_report())
+    logger_state.close_logging_file_handler()
     move_log_file_to_results_subdirectory()
 
 
@@ -190,7 +184,7 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # Initialize logging, create a log file in the working directory
-    logging_handler = WarcSearcherLogger.initialize_logging_to_file()
+    logger_state.initialize_logging_to_file()
 
     # Register the finish function to be automatically called on program exit
     atexit.register(lambda: finish())
@@ -211,7 +205,7 @@ if __name__ == '__main__':
     begin_search(definitions)
 
     if fileops.results_output_subdirectory != '':
-        WarcSearcherLogger.log_info(f"Results output to: {fileops.results_output_subdirectory}")
+        logger.log_info(f"Results output to: {fileops.results_output_subdirectory}")
 
     elapsedMinutes, elapsedSeconds = calculate_execution_time(start_time)
-    WarcSearcherLogger.log_info(f"Finished searching. Elapsed time: {elapsedMinutes}m {elapsedSeconds}s")
+    logger.log_info(f"Finished searching. Elapsed time: {elapsedMinutes}m {elapsedSeconds}s")

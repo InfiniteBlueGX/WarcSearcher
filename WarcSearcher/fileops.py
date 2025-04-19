@@ -5,10 +5,10 @@ import os
 import shutil
 
 import config
+import logger
 
 from validators import *
 from helpers import *
-from logger import *
 from config import *
 
 
@@ -22,7 +22,7 @@ def create_results_output_subdirectory():
     results_output_subdirectory = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
     os.makedirs(results_output_subdirectory)
 
-    WarcSearcherLogger.log_info(f"Results output folder created: {results_output_subdirectory}")
+    logger.log_info(f"Results output folder created: {results_output_subdirectory}")
     return results_output_subdirectory
 
 
@@ -46,7 +46,7 @@ def move_log_file_to_results_subdirectory():
         shutil.move(working_directory_log_path, results_output_subdirectory_log_path)
     else:
         # Keep log file in the working directory if no results subdirectory was created as part of the execution
-        WarcSearcherLogger.log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
+        logger.log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
 
 
 
