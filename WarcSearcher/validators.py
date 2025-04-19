@@ -74,7 +74,7 @@ def validate_and_get_max_search_processes(parsed_value):
             raise ValueError()
 
     except ValueError:
-        logger.log_error(
+        logger.log_warning(
             f"Invalid value for max_concurrent_search_processes in config.ini: {parsed_value}. "
             f"Setting number of search processes to maximum logical processors available on the PC."
         )
@@ -84,8 +84,8 @@ def validate_and_get_max_search_processes(parsed_value):
 
 
 
-def validate_and_get_target_process_memory(parsed_value):
-    """Validates and returns the target process memory in bytes."""
+def validate_and_get_target_ram_usage(parsed_value):
+    """Validates and returns the target RAM usage for the program execution in bytes."""
 
     # Calculate total machine RAM in bytes, rounded down to nearest GB
     total_machine_ram_in_bytes = get_total_ram_bytes_rounded()
@@ -100,9 +100,9 @@ def validate_and_get_target_process_memory(parsed_value):
             raise ValueError()
 
     except ValueError:
-        logger.log_error(
-            f"Invalid value for target_process_memory_bytes in config.ini: {parsed_value}. "
-            f"Setting target process memory to maximum RAM available on the PC."
+        logger.log_warning(
+            f"Invalid value for target_ram_usage_bytes in config.ini: {parsed_value}. "
+            f"Setting target RAM usage to maximum RAM available on the PC."
         )
         target_process_ram_in_bytes = total_machine_ram_in_bytes
 

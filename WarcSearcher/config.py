@@ -10,7 +10,7 @@ settings = {
     "ZIP_FILES_WITH_MATCHES": False,
     "MAX_ARCHIVE_READ_THREADS": 2,
     "MAX_SEARCH_PROCESSES": 2,
-    "TARGET_PROCESS_MEMORY": 1000000000
+    "TARGET_RAM_USAGE_BYTES": 1000000000
 }
 
 
@@ -67,11 +67,8 @@ def read_optional_config_ini_variables(parser):
     # threads_item = parser.get('OPTIONAL', 'max_concurrent_archive_read_threads').lower()
     # settings["MAX_ARCHIVE_READ_THREADS"] = min(32, os.cpu_count() + 4) if threads_item == "none" else int(threads_item)
 
-    # Default to the number of logical processors available on the system
     parsed_max_search_processes = parser.get('OPTIONAL', 'max_concurrent_search_processes').lower()
     settings["MAX_SEARCH_PROCESSES"] = validate_and_get_max_search_processes(parsed_max_search_processes)
 
-
-    # Parse and validate target process memory
-    parsed_target_process_bytes = parser.get('OPTIONAL', 'target_process_memory_bytes').lower()
-    settings["TARGET_PROCESS_MEMORY"] = validate_and_get_target_process_memory(parsed_target_process_bytes)
+    parsed_target_process_bytes = parser.get('OPTIONAL', 'target_ram_usage_bytes').lower()
+    settings["TARGET_RAM_USAGE_BYTES"] = validate_and_get_target_ram_usage(parsed_target_process_bytes)
