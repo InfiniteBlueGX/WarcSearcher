@@ -4,19 +4,20 @@ import os
 import re
 import shutil
 import time
+from definitions import create_associated_definition_files_regex_list
+import results
 from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
 from io import StringIO
 from multiprocessing import Manager
 
+from results import *
 import config
-import fileops
 import logger
 import psutil
 from config import *
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
-from fileops import *
 from record_data import RecordData
 from search_timer import SearchTimer
 from utilities import *
@@ -26,10 +27,12 @@ from zip_files import *
 SEARCH_QUEUE = None
 searchTimer = SearchTimer()
 
+
 def begin_search(definitions_list):
     manager = Manager()
 
-    txt_locks = initialize_result_txt_files_and_locks(manager, definitions_list)
+    initialized_txt_files = initialize_result_txt_files(definitions_list)
+    txt_locks = get_result_txt_file_write_locks(manager, initialized_txt_files)
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
@@ -52,11 +55,11 @@ def begin_search(definitions_list):
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
         logger.log_info("Finalizing the zip archives...")
-        tempdir = os.path.join(fileops.results_output_subdirectory, "temp")
+        tempdir = os.path.join(results.results_output_subdirectory, "temp")
         with ThreadPoolExecutor() as executor:
             futures = {executor.submit(merge_zip_archives, 
                                        tempdir,
-                                       fileops.results_output_subdirectory, 
+                                       results.results_output_subdirectory, 
                                        os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path, _ in definitions_list}
             for future in as_completed(futures):
                 future.result()
@@ -110,7 +113,7 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_
                 matches_contents = find_regex_matches(record_obj.contents.decode('utf-8', 'ignore'), regex)
 
             if matches_name or matches_contents:
-                write_matches_to_txt_output_buffer(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
+                write_matches_to_output_buffer(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
                 if zip_files_with_matches:
                     zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
                     write_file_with_match_to_zip(record_obj.contents, record_obj.name, zip_archives[zip_path])
@@ -163,62 +166,6 @@ def open_warc_gz_file(gz_file_path):
 
 
 
-def compile_regex_pattern(definition_file):
-    """
-    Read and compile a regex pattern from a definition file.
-    
-    Args:
-        definition_file (str): Path to the definition file
-        
-    Returns:
-        tuple: (compiled_pattern, success_flag)
-            - compiled_pattern: The compiled regex pattern or None if compilation failed
-            - success_flag: True if compilation was successful, False otherwise
-    """
-    try:
-        with open(definition_file, 'r', encoding='utf-8') as file:
-            raw_regex = file.read().strip()
-        
-        try:
-            regex_pattern = re.compile(raw_regex, re.IGNORECASE)
-            return regex_pattern, True
-        except re.error:
-            logger.log_error(f"Invalid regular expression found in {definition_file}")
-            return None, False
-            
-    except IOError as e:
-        logger.log_error(f"Error reading file {definition_file}: {str(e)}")
-        return None, False
-
-
-
-def create_regex_and_result_file_tuple_collection() -> list: 
-    """
-    
-    """
-
-    regex_patterns_list = []
-    results_txt_files_dict = {}
-
-    definition_files = get_definition_txt_files_list()
-    
-    for definition_file in definition_files:
-        regex_pattern, success = compile_regex_pattern(definition_file)
-        
-        if success:
-            regex_patterns_list.append(regex_pattern)
-            
-            output_filepath = get_results_txt_file_path(definition_file)
-            results_txt_files_dict[output_filepath] = output_filepath
-        else:
-            logger.log_warning(f"Regex pattern in {definition_file} was invalid and will not be used to search.")
-
-    verify_regex_patterns_exist(regex_patterns_list)
-
-    return list(zip(results_txt_files_dict, regex_patterns_list))
-
-
-
 def finish():
     """
     Function to be called on program exit. Responsible for logging errors and warnings, closing the logging file handler, 
@@ -244,19 +191,19 @@ if __name__ == '__main__':
     read_config_ini_variables()
 
     # Create the results subdirectory in the output folder and set the fileops global to it
-    fileops.results_output_subdirectory = create_results_output_subdirectory()
+    results.results_output_subdirectory = create_results_output_subdirectory()
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        create_temp_directory_for_zip_archives(fileops.results_output_subdirectory)
+        create_temp_directory_for_zip_archives(results.results_output_subdirectory)
 
     # Create the definitions list
-    definitions = create_regex_and_result_file_tuple_collection()
+    definitions = create_associated_definition_files_regex_list()
 
     # Start the search
     begin_search(definitions)
 
-    if fileops.results_output_subdirectory != '':
-        logger.log_info(f"Results output to: {fileops.results_output_subdirectory}")
+    if results.results_output_subdirectory != '':
+        logger.log_info(f"Results output to: {results.results_output_subdirectory}")
 
     # Stop the execution timer and log the total execution time
     searchTimer.end_timer()
