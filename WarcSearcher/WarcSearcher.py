@@ -21,7 +21,7 @@ from results import *
 from search_timer import SearchTimer
 from utilities import *
 from validators import *
-from zip_files import *
+from zipped_results import *
 
 SEARCH_QUEUE = None
 searchTimer = SearchTimer()
