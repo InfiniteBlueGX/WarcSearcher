@@ -9,9 +9,9 @@ class Logger:
         self.file_handler = None
     
     def initialize_logging_to_file(self):
-        """Initialize logging to a output_log.log file in the current working directory."""
+        """Initialize logging to a log.log file in the current working directory."""
         working_directory = os.getcwd()
-        log_path = f"{working_directory}/output_log.log"
+        log_path = f"{working_directory}/log.log"
         if os.path.exists(log_path):
             os.remove(log_path)
         self.file_handler = logging.FileHandler(log_path)

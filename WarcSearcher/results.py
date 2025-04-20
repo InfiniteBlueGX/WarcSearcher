@@ -89,11 +89,12 @@ def move_log_file_to_results_subdirectory():
     """Moves the log file to the results output subdirectory, or keeps it in the working directory if an output subdirectory was not created."""
 
     if results_output_subdirectory != '':
-        working_directory_log_path = os.path.join(os.getcwd(), 'output_log.log')
-        results_output_subdirectory_log_path = os.path.join(results_output_subdirectory, 'output_log.log')
+        working_directory_log_path = os.path.join(os.getcwd(), 'log.log')
+        results_output_subdirectory_log_path = os.path.join(results_output_subdirectory, 'log.log')
         shutil.move(working_directory_log_path, results_output_subdirectory_log_path)
     else:
-        log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
+        # The results output subdirectory was not created likely due to an error, so keep the log file in the working directory.
+        log_info(f"Log file output to: {os.getcwd()}\\log")
 
 
 def log_results_output_path():

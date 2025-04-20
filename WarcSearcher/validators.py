@@ -2,7 +2,6 @@ import glob
 import os
 import sys
 
-import logger
 from logger import *
 from utilities import get_total_ram_bytes_rounded
 

@@ -1,6 +1,5 @@
 import configparser
 
-import logger
 from validators import *
 
 settings = {

@@ -6,6 +6,7 @@ from multiprocessing import Manager
 
 import results
 from config import *
+from definitions import create_associated_definition_files_regex_list
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
 from record_data import RecordData
@@ -15,7 +16,8 @@ from zipped_results import *
 
 SEARCH_QUEUE = None
 
-def begin_search(definitions_list):
+def start_search():
+    definitions_list = create_associated_definition_files_regex_list()
     manager = Manager()
 
     initialized_txt_files = initialize_result_txt_files(definitions_list)
@@ -122,7 +124,7 @@ def iterate_through_gz_files(gz_directory_path):
 
 def open_warc_gz_file(gz_file_path):
     gz_file_stream = GZipStream(FileStream(gz_file_path, 'rb'))
-    log_info(f"Beginning to process {gz_file_path}")
+    log_info(f"Reading records from {gz_file_path}")
 
     try:
         records = ArchiveIterator(gz_file_stream, strict_mode=False)
@@ -143,7 +145,7 @@ def open_warc_gz_file(gz_file_path):
                     log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
                     process = psutil.Process()
                     while get_total_memory_in_use(process) > config.settings["TARGET_RAM_USAGE_BYTES"]:
-                        log_warning(f"RAM usage is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time to process the existing queue...")
+                        log_warning(f"RAM usage is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
                         time.sleep(10)
     except Exception as e:
-        log_error(f"Error ocurred when reading contents of {gz_file_path}: \n{e}")
+        log_error(f"Error ocurred when reading {gz_file_path}: \n{e}")
