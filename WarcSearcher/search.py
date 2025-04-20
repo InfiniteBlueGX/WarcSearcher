@@ -144,8 +144,8 @@ def open_warc_gz_file(gz_file_path):
                 if records_searched % 1000 == 0:
                     log_info(f"Read {records_searched} response records from the WARC in {gz_file_path}")
                     process = psutil.Process()
-                    while get_total_memory_in_use(process) > config.settings["TARGET_RAM_USAGE_BYTES"]:
-                        log_warning(f"RAM usage is beyond target size specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
+                    while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
+                        log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
                         time.sleep(10)
     except Exception as e:
         log_error(f"Error ocurred when reading {gz_file_path}: \n{e}")

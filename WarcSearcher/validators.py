@@ -17,14 +17,14 @@ def validate_warc_gz_archives_directory(warc_gz_archives_directory):
         sys.exit()
 
 
-def validate_search_definitions_directory(search_definitions_directory):
+def validate_search_regex_definitions_directory(search_regex_definitions_directory):
     """Validates that the directory containing the regex definition .txt files exists and has .txt files present."""
 
-    if not os.path.exists(search_definitions_directory):
-        log_error(f"Directory containing the regex definition .txt files does not exist: {search_definitions_directory}")
+    if not os.path.exists(search_regex_definitions_directory):
+        log_error(f"Directory containing the regex definition .txt files does not exist: {search_regex_definitions_directory}")
         sys.exit()
-    if not glob.glob(search_definitions_directory + '/*.txt'):
-        log_error(f"Directory that should contain the regex definition .txt files does not contain any: {search_definitions_directory}")
+    if not glob.glob(search_regex_definitions_directory + '/*.txt'):
+        log_error(f"Directory that should contain the regex definition .txt files does not contain any: {search_regex_definitions_directory}")
         sys.exit()
 
 
@@ -69,7 +69,7 @@ def validate_and_get_max_search_processes(parsed_value):
 
     except ValueError:
         log_warning(
-            f"Invalid value for max_concurrent_search_processes in config.ini: {parsed_value}. "
+            f"Invalid value for MAX_CONCURRENT_SEARCH_PROCESSES in config.ini: {parsed_value}. "
             f"Setting number of search processes to maximum logical processors available on the PC."
         )
         max_search_processes = total_logical_processors
@@ -77,26 +77,26 @@ def validate_and_get_max_search_processes(parsed_value):
     return max_search_processes
 
 
-def validate_and_get_target_ram_usage(parsed_value):
-    """Validates and returns the target RAM usage for the program execution in bytes."""
+def validate_and_get_max_ram_usage(parsed_value):
+    """Validates and returns the maximum RAM usage for the program execution in bytes."""
 
     # Calculate total machine RAM in bytes, rounded down to nearest GB
     total_machine_ram_in_bytes = get_total_ram_bytes_rounded()
 
     try:
-        target_process_ram_in_bytes = (
+        max_ram_usage_in_bytes = (
             total_machine_ram_in_bytes if parsed_value == "none" 
             else int(parsed_value)
         )
 
-        if target_process_ram_in_bytes <= 0 or target_process_ram_in_bytes > total_machine_ram_in_bytes:
+        if max_ram_usage_in_bytes <= 0 or max_ram_usage_in_bytes > total_machine_ram_in_bytes:
             raise ValueError()
 
     except ValueError:
         log_warning(
-            f"Invalid value for target_ram_usage_bytes in config.ini: {parsed_value}. "
-            f"Setting target RAM usage to maximum RAM available on the PC."
+            f"Invalid value for MAX_RAM_USAGE_BYTES in config.ini: {parsed_value}. "
+            f"Setting maximum RAM usage to the total amount of RAM available on the PC."
         )
-        target_process_ram_in_bytes = total_machine_ram_in_bytes
+        max_ram_usage_in_bytes = total_machine_ram_in_bytes
 
-    return target_process_ram_in_bytes
+    return max_ram_usage_in_bytes

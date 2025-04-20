@@ -10,7 +10,7 @@ from validators import verify_regex_patterns_exist
 def get_definition_txt_files_list():
     """Finds all definition files in the search definitions directory. Returns a list of paths to definition files"""
     
-    return glob.glob(os.path.join(config.settings["SEARCH_DEFINITIONS_DIRECTORY"], '*.txt'))
+    return glob.glob(os.path.join(config.settings["SEARCH_REGEX_DEFINITIONS_DIRECTORY"], '*.txt'))
 
 
 def compile_regex_pattern_from_definition_file(definition_file):
