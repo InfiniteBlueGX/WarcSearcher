@@ -30,3 +30,9 @@ def get_total_ram_bytes_rounded() -> int:
     """Returns the total RAM of the machine in bytes, rounded down to the nearest GB."""
     total_ram = psutil.virtual_memory().total
     return (total_ram // (1024 ** 3)) * (1024 ** 3)
+
+
+def sanitize_file_name(file_name: str) -> str:
+    """Sanitizes a string intended to be usaed as a file name by removing web prefixes and invalid characters."""
+    web_prefixes_removed = file_name.replace('http://', '').replace('https://', '').replace('www.', '')
+    return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))

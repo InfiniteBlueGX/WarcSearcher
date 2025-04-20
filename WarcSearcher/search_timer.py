@@ -19,7 +19,7 @@ class SearchTimer:
         """Ends the timer and calculates the total time."""
 
         if self.start_time is None:
-            log_error("Cannot log execution time - Timer has not been started.")
+            log_error("Cannot end timer - Timer has not been started.")
             return
         
         self.end_time = time.time()

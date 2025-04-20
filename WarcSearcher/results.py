@@ -1,28 +1,28 @@
 import datetime
 import shutil
 
-from zipped_results import create_temp_directory_for_zip_archives
 import config
 from logger import *
 
 results_output_subdirectory = ''
 
 
-def create_results_output_subdirectory():
+def initialize_results_output_subdirectory():
     """Creates a timestamped subdirectory in the results output directory to store the search results for the current execution."""
 
     results_subdirectory_name = "WarcSearcher_Results_" + datetime.datetime.now().strftime('%m-%d-%y_%H_%M_%S')
     
-    results_output_subdirectory_temp = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
-    os.makedirs(results_output_subdirectory_temp)
+    results_output_subdirectory_path = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
+    os.makedirs(results_output_subdirectory_path)
 
-    log_info(f"Results output folder created: {results_output_subdirectory_temp}")
+    log_info(f"Results output folder created: {results_output_subdirectory_path}")
 
     global results_output_subdirectory
-    results_output_subdirectory = results_output_subdirectory_temp
+    results_output_subdirectory = results_output_subdirectory_path
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        create_temp_directory_for_zip_archives(results_output_subdirectory)
+        os.makedirs(os.path.join(results_output_subdirectory, "temp"))
+        log_info(f"Temporary folder for zip archives created in the results subdirectory.")
 
 
 def get_results_txt_file_path(definition_file_path) -> str:
