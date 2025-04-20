@@ -9,13 +9,11 @@ from validators import verify_regex_patterns_exist
 
 def get_definition_txt_files_list():
     """Finds all definition files in the search definitions directory. Returns a list of paths to definition files"""
-    
     return glob.glob(os.path.join(config.settings["SEARCH_REGEX_DEFINITIONS_DIRECTORY"], '*.txt'))
 
 
 def compile_regex_pattern_from_definition_file(definition_file):
     """Reads a regex pattern from a definition file and compiles it into a regex object."""
-    
     try:
         with open(definition_file, 'r', encoding='utf-8') as file:
             raw_regex = file.read().strip()
@@ -34,7 +32,6 @@ def compile_regex_pattern_from_definition_file(definition_file):
 
 def create_associated_definition_files_regex_list() -> list: 
     """Creates a list that associates the regex patterns with their respective results output .txt file paths."""
-
     regex_patterns_list = []
     results_txt_files_dict = {}
 

@@ -15,7 +15,6 @@ settings = {
 
 def read_config_ini_variables():
     """Reads the variables found in ther config.ini file after ensuring it exists."""
-
     config_path = get_config_ini_path()
 
     parser = configparser.ConfigParser()
@@ -43,7 +42,6 @@ def get_config_ini_path():
 
 def read_required_config_ini_variables(parser):
     """Reads the required variables from the config.ini file, validates them, and sets them in the config dictionary."""
-
     settings["WARC_GZ_ARCHIVES_DIRECTORY"] = parser.get('REQUIRED', 'WARC_GZ_ARCHIVES_DIRECTORY')
     validate_warc_gz_archives_directory(settings["WARC_GZ_ARCHIVES_DIRECTORY"])
 
@@ -56,7 +54,6 @@ def read_required_config_ini_variables(parser):
 
 def read_optional_config_ini_variables(parser):
     """Reads the optional variables from the config.ini file and sets them in the config settings dictionary."""
-
     settings["ZIP_FILES_WITH_MATCHES"] = parser.getboolean('OPTIONAL', 'ZIP_FILES_WITH_MATCHES')
 
     # Defaults to Python's default of logical processor count + 4 or 32, whichever is lower

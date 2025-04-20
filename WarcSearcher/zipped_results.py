@@ -7,7 +7,6 @@ from utilities import sanitize_file_name
 
 def write_file_with_match_to_zip(file_data, file_name, zip_archive):
     """Writes a file with a match to the zip archive after ensuring a file with the same name is not already present in the zip archive."""
-    
     reformatted_file_name = sanitize_file_name(file_name)
     if reformatted_file_name not in zip_archive.namelist():
         zip_archive.writestr(reformatted_file_name, file_data)
@@ -18,7 +17,6 @@ def merge_zip_archives(containing_dir, output_dir, definition_prefix):
     Merges zip archives with the same prefix into a single zip archive. 
     This is necessary because each search subprocess creates its own zip archive.
     """
-
     combined_zip = os.path.join(output_dir, f"{definition_prefix}.zip")
     added_files = set()
 
