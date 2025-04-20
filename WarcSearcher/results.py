@@ -1,9 +1,9 @@
 import datetime
-import os
 import shutil
 
+from zipped_results import create_temp_directory_for_zip_archives
 import config
-import logger
+from logger import *
 
 results_output_subdirectory = ''
 
@@ -16,10 +16,13 @@ def create_results_output_subdirectory():
     results_output_subdirectory_temp = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
     os.makedirs(results_output_subdirectory_temp)
 
-    logger.log_info(f"Results output folder created: {results_output_subdirectory_temp}")
+    log_info(f"Results output folder created: {results_output_subdirectory_temp}")
 
     global results_output_subdirectory
     results_output_subdirectory = results_output_subdirectory_temp
+
+    if config.settings["ZIP_FILES_WITH_MATCHES"]:
+        create_temp_directory_for_zip_archives(results_output_subdirectory)
 
 
 def get_results_txt_file_path(definition_file_path) -> str:
@@ -90,4 +93,9 @@ def move_log_file_to_results_subdirectory():
         results_output_subdirectory_log_path = os.path.join(results_output_subdirectory, 'output_log.log')
         shutil.move(working_directory_log_path, results_output_subdirectory_log_path)
     else:
-        logger.log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
+        log_info(f"Log file output to working directory: {os.getcwd()}\\output_log")
+
+
+def log_results_output_path():
+    if results_output_subdirectory != '':
+        log_info(f"Results output to: {results_output_subdirectory}")

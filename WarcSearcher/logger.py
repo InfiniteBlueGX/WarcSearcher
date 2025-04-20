@@ -31,11 +31,11 @@ class Logger:
             self.file_handler = None
     
     def increment_error(self):
-        """Increment the error count and log the error."""
+        """Increment the error count."""
         self.error_count += 1
     
     def increment_warning(self):
-        """Increment the warning count and log the warning."""
+        """Increment the warning count."""
         self.warning_count += 1
     
     def get_final_report(self):

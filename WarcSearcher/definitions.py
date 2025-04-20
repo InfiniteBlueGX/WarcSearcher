@@ -3,7 +3,7 @@ import os
 import re
 
 import config
-import logger
+from logger import *
 from results import get_results_txt_file_path
 from validators import verify_regex_patterns_exist
 
@@ -25,11 +25,11 @@ def compile_regex_pattern_from_definition_file(definition_file):
             regex_pattern = re.compile(raw_regex, re.IGNORECASE)
             return regex_pattern, True
         except re.error:
-            logger.log_error(f"Invalid regular expression found in {definition_file}")
+            log_error(f"Invalid regular expression found in {definition_file}")
             return None, False
             
     except IOError as e:
-        logger.log_error(f"Error reading file {definition_file}: {str(e)}")
+        log_error(f"Error reading file {definition_file}: {str(e)}")
         return None, False
     
 
@@ -50,7 +50,7 @@ def create_associated_definition_files_regex_list() -> list:
             output_filepath = get_results_txt_file_path(definition_file_path)
             results_txt_files_dict[output_filepath] = output_filepath
         else:
-            logger.log_warning(f"Regex pattern in {definition_file_path} was invalid and will not be used to search.")
+            log_warning(f"Regex pattern in {definition_file_path} was invalid and will not be used to search.")
 
     verify_regex_patterns_exist(regex_patterns_list)
 

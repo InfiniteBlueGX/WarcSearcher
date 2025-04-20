@@ -1,6 +1,6 @@
 import time
 
-import logger
+from logger import *
 
 
 class SearchTimer:
@@ -24,7 +24,7 @@ class SearchTimer:
     def log_execution_time(self):
         """Logs the total execution time in a formatted string."""
         if self.total_time is None:
-            return logger.log_error("Timer has not been started or stopped.")
+            return log_error("Timer has not been started or stopped.")
 
         minutes, seconds = divmod(self.total_time, 60)
-        logger.log_info(f"Execution time: {int(minutes)} minutes and {round(seconds, 2)} seconds.")
+        log_info(f"Execution time: {int(minutes)} minutes and {round(seconds, 2)} seconds.")

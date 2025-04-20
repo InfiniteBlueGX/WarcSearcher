@@ -27,7 +27,7 @@ def read_config_ini_variables():
         read_optional_config_ini_variables(parser)
         
     except Exception as e:
-        logger.log_error(f"Error reading the contents of the config.ini file: \n{e}")
+        log_error(f"Error reading the contents of the config.ini file: \n{e}")
         sys.exit()
 
 
@@ -37,7 +37,7 @@ def get_config_ini_path():
     elif os.path.isfile('../config.ini'):
         config_path = '../config.ini'
     else:
-        logger.log_error("config.ini file does not exist in the working directory or its parent.")
+        log_error("config.ini file does not exist in the working directory or its parent.")
         sys.exit()
     return config_path
 
