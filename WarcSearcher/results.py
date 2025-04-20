@@ -88,7 +88,7 @@ def write_matches_to_result(output_buffer, matches_list, match_type):
 def move_log_file_to_results_subdirectory():
     """Moves the log file to the results output subdirectory, or keeps it in the working directory if an output subdirectory was not created."""
 
-    if results_output_subdirectory != '':
+    if results_output_subdirectory != '' and os.path.exists(results_output_subdirectory):
         working_directory_log_path = os.path.join(os.getcwd(), 'log.log')
         results_output_subdirectory_log_path = os.path.join(results_output_subdirectory, 'log.log')
         shutil.move(working_directory_log_path, results_output_subdirectory_log_path)
