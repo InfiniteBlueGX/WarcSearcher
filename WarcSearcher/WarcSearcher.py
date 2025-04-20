@@ -170,9 +170,8 @@ def finish():
     move_log_file_to_results_subdirectory()
 
 
-
-if __name__ == '__main__':
-    # Start the execution timer
+def main() -> int:
+    """Program entry point and primary function."""
     searchTimer.start_timer()
 
     # Initialize logging - create a log file in the working directory
@@ -193,12 +192,15 @@ if __name__ == '__main__':
     # Create the definitions list
     definitions = create_associated_definition_files_regex_list()
 
-    # Start the search
     begin_search(definitions)
 
     if results.results_output_subdirectory != '':
         log_info(f"Results output to: {results.results_output_subdirectory}")
 
-    # Stop the execution timer and log the total execution time
     searchTimer.end_timer()
     searchTimer.log_execution_time()
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
