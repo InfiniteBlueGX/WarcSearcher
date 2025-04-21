@@ -6,7 +6,7 @@ from multiprocessing import Manager
 
 import results
 from config import *
-from definitions import create_associated_definition_files_regex_list
+from definitions import create_associated_result_files_with_regex_list
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
 from record_data import RecordData
@@ -17,7 +17,7 @@ from zipped_results import *
 SEARCH_QUEUE = None
 
 def start_search():
-    definitions_list = create_associated_definition_files_regex_list()
+    definitions_list = create_associated_result_files_with_regex_list()
     manager = Manager()
 
     initialized_txt_files = initialize_result_txt_files(definitions_list)
@@ -103,7 +103,7 @@ def open_warc_gz_file(gz_file_path):
         log_error(f"Error ocurred when reading {gz_file_path}: \n{e}")
 
 
-def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_files_with_matches):
+def find_and_write_matches_subprocess(search_queue, definitions, txt_locks, zip_files_with_matches):
     """This function is intended to be run on any number of subprocesses to search for regex matches in the gz files."""
     print(f"Starting search process #{os.getpid()}")
 
@@ -121,8 +121,9 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_
             zip_archives[zip_path] = zipfile.ZipFile(zip_path, 'a', zipfile.ZIP_DEFLATED)
 
     while True:
-        record_obj: RecordData = record_queue.get()
+        record_obj: RecordData = search_queue.get()
         if record_obj == None:
+            # If the record obtained from the search queue is None, it means there are no more records left to process
             for txt_path, _ in definitions:
                 buffer_contents = txt_buffers[txt_path].getvalue()
                 with txt_locks[txt_path]:
@@ -149,6 +150,7 @@ def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_
                 matches_contents = find_regex_matches(record_obj.contents.decode('utf-8', 'ignore'), regex)
 
             if matches_name or matches_contents:
+                #print(f"Writing record on process #{os.getpid()}")
                 write_matched_file_to_result(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
                 if zip_files_with_matches:
                     zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
