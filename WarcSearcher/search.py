@@ -25,17 +25,20 @@ def start_search():
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
-    with ProcessPoolExecutor(max_workers = config.settings["MAX_SEARCH_PROCESSES"]-1) as executor:
+
+    max_processes: int = config.settings["MAX_SEARCH_PROCESSES"]-1 if config.settings["MAX_SEARCH_PROCESSES"] > 1 else 1
+
+    with ProcessPoolExecutor(max_workers = max_processes) as executor:
         futures = [executor.submit(find_and_write_matches_subprocess, 
                                    SEARCH_QUEUE, 
                                    definitions_list, 
                                    txt_locks, 
-                                   config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(config.settings["MAX_SEARCH_PROCESSES"]-1)]
+                                   config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_processes)]
 
         iterate_through_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
 
         # Put a None object in the queue for each process to signal them to stop searching
-        for _ in range(config.settings["MAX_SEARCH_PROCESSES"]):
+        for _ in range(max_processes):
             SEARCH_QUEUE.put(None)
 
         log_info("Waiting on search processes to finish - This may take a while, please wait...")
@@ -54,57 +57,6 @@ def start_search():
                 future.result()
 
         shutil.rmtree(tempdir)
-
-
-def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_files_with_matches):
-    """This function is intended to be run on any number of subprocesses to search for regex matches in the gz files."""
-    print(f"Starting search process #{os.getpid()}")
-
-    if zip_files_with_matches:
-        zip_archives = {}
-        results_dir = os.path.dirname(definitions[0][0])
-        zip_process_dir = os.path.join(f"{results_dir}\\temp", str(os.getpid()))
-        os.makedirs(zip_process_dir)           
-
-    txt_buffers = {}
-    for txt_path, _ in definitions:
-        txt_buffers[txt_path] = StringIO()
-        if zip_files_with_matches:
-            zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
-            zip_archives[zip_path] = zipfile.ZipFile(zip_path, 'a', zipfile.ZIP_DEFLATED)
-
-    while True:
-        record_obj: RecordData = record_queue.get()
-        if record_obj == None:
-            for txt_path, _ in definitions:
-                buffer_contents = txt_buffers[txt_path].getvalue()
-                with txt_locks[txt_path]:
-                    with open(txt_path, "a", encoding='utf-8') as output_file:
-                        output_file.write(buffer_contents)
-            if zip_files_with_matches:
-                for zip_file in zip_archives:
-                    zip_archives[zip_file].close()
-                
-            print(f"Ending search process #{os.getpid()}")
-            break
-
-        for txt_path, regex in definitions:
-            matches_name = []
-            matches_contents = []
-
-            matches_name = find_regex_matches(record_obj.name, regex)
-
-            if is_file_binary(record_obj.contents):
-                # If the file is binary data (image, video, audio, etc), only search the file name, since searching the binary data is wasted effort
-                matches_contents = ''
-            else:    
-                matches_contents = find_regex_matches(record_obj.contents.decode('utf-8', 'ignore'), regex)
-
-            if matches_name or matches_contents:
-                write_matched_file_to_result(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
-                if zip_files_with_matches:
-                    zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
-                    write_file_with_match_to_zip(record_obj.contents, record_obj.name, zip_archives[zip_path])
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -149,3 +101,55 @@ def open_warc_gz_file(gz_file_path):
                         time.sleep(10)
     except Exception as e:
         log_error(f"Error ocurred when reading {gz_file_path}: \n{e}")
+
+
+def find_and_write_matches_subprocess(record_queue, definitions, txt_locks, zip_files_with_matches):
+    """This function is intended to be run on any number of subprocesses to search for regex matches in the gz files."""
+    print(f"Starting search process #{os.getpid()}")
+
+    if zip_files_with_matches:
+        zip_archives = {}
+        results_dir = os.path.dirname(definitions[0][0])
+        zip_process_dir = os.path.join(f"{results_dir}\\temp", str(os.getpid()))
+        os.makedirs(zip_process_dir)           
+
+    txt_buffers = {}
+    for txt_path, _ in definitions:
+        txt_buffers[txt_path] = StringIO()
+        if zip_files_with_matches:
+            zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
+            zip_archives[zip_path] = zipfile.ZipFile(zip_path, 'a', zipfile.ZIP_DEFLATED)
+
+    while True:
+        record_obj: RecordData = record_queue.get()
+        if record_obj == None:
+            for txt_path, _ in definitions:
+                buffer_contents = txt_buffers[txt_path].getvalue()
+                with txt_locks[txt_path]:
+                    with open(txt_path, "a", encoding='utf-8') as output_file:
+                        output_file.write(buffer_contents)
+            if zip_files_with_matches:
+                for zip_file in zip_archives:
+                    zip_archives[zip_file].close()
+                
+            print(f"Ending search process #{os.getpid()}")
+            break
+
+        for txt_path, regex in definitions:
+            matches_name = []
+            matches_contents = []
+
+            matches_name = find_regex_matches(record_obj.name, regex)
+
+            if is_file_binary(record_obj.contents):
+                # If the file is binary data (image, video, audio, etc), only search the file name
+                # TODO maybe make this an optional config.ini setting
+                matches_contents = ''
+            else:    
+                matches_contents = find_regex_matches(record_obj.contents.decode('utf-8', 'ignore'), regex)
+
+            if matches_name or matches_contents:
+                write_matched_file_to_result(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
+                if zip_files_with_matches:
+                    zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
+                    write_file_with_match_to_zip(record_obj.contents, record_obj.name, zip_archives[zip_path])

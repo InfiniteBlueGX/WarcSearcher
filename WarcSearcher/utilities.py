@@ -14,7 +14,7 @@ def is_file_binary(file_data) -> bool:
 
 
 def get_total_memory_in_use(process: psutil.Process) -> int:
-    """Returns the total memory in use by the process and its subprocesses."""
+    """Returns the total memory in use by the WarcSearcher process and its subprocesses."""
     mem_info = process.memory_info()
     resident_set_size_memory = mem_info.rss
 
