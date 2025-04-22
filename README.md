@@ -1,4 +1,5 @@
 # WarcSearcher
+
 A Python tool that performs regex keyword searches iteratively over the contents of local warc.gz files. Uses Python 3.12.2. (Currently in active development)
 
 WarcSearcher is designed to facilitate the parsing of large web archives ([WARC files](https://iipc.github.io/warc-specifications/specifications/warc-format/warc-1.1/)) with a variety of search criteria. It also aims to package the results for sharing in collaborative online settings.
@@ -9,7 +10,6 @@ WarcSearcher uses the [FastWARC](https://resiliparse.chatnoir.eu/en/latest/man/f
 
 * Regex searching of all `response` records in a WARC
 * Support for any number of regex "definitions" to search with - results output is segregated by definition
-* Recursive searching of nested .zip, .7z, .rar, and .gz archives within a WARC
 * Results output to .txt file per-definition
 * Optional per-definition .zip output of all files from the WARC that yielded a match
 * Multiprocessed warc.gz processing
@@ -20,7 +20,6 @@ WarcSearcher uses the [FastWARC](https://resiliparse.chatnoir.eu/en/latest/man/f
 [Work in progress]
 
 * Ensure Python is installed and you are able to install packages via `pip install`.
-* In order to process .rar files encountered while searching, WinRar must be installed and the path to the executable must be added to your System Path environment variable (i.e. `C:\Program Files\WinRAR`)
 * Acquire WarcSearcher.py, config.ini, and requirements.txt, and place them in a local directory.
 * Using a terminal, navigate to the directory you placed the files in and install all required libraries: `pip install -r requirements.txt`
 * Edit config.ini to provide the program with the following required information:
