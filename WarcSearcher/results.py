@@ -1,33 +1,31 @@
 import datetime
 import shutil
 
-from zipped_results import create_temp_directory_for_zip_archives
 import config
 from logger import *
 
 results_output_subdirectory = ''
 
 
-def create_results_output_subdirectory():
+def initialize_results_output_subdirectory():
     """Creates a timestamped subdirectory in the results output directory to store the search results for the current execution."""
-
     results_subdirectory_name = "WarcSearcher_Results_" + datetime.datetime.now().strftime('%m-%d-%y_%H_%M_%S')
     
-    results_output_subdirectory_temp = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
-    os.makedirs(results_output_subdirectory_temp)
+    results_output_subdirectory_path = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)
+    os.makedirs(results_output_subdirectory_path)
 
-    log_info(f"Results output folder created: {results_output_subdirectory_temp}")
+    log_info(f"Results output folder created: {results_output_subdirectory_path}")
 
     global results_output_subdirectory
-    results_output_subdirectory = results_output_subdirectory_temp
+    results_output_subdirectory = results_output_subdirectory_path
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        create_temp_directory_for_zip_archives(results_output_subdirectory)
+        os.makedirs(os.path.join(results_output_subdirectory, "temp"))
+        log_info("Temporary folder for zipped results created in the results subdirectory.")
 
 
 def get_results_txt_file_path(definition_file_path) -> str:
     """Returns a file path for the results text file based on the definition file name."""
-
     filename_without_extension = os.path.splitext(os.path.basename(definition_file_path))[0]
     output_filename = f"{filename_without_extension}_results.txt"
     return os.path.join(results_output_subdirectory, output_filename)
@@ -35,7 +33,6 @@ def get_results_txt_file_path(definition_file_path) -> str:
 
 def initialize_result_txt_files(definitions_list):
     """Initialize the results text files by writing headers."""
-
     initialized_files = []
     for txt_path, regex in definitions_list:
         with open(txt_path, "a", encoding='utf-8') as output_file:
@@ -46,7 +43,6 @@ def initialize_result_txt_files(definitions_list):
 
 def get_result_txt_file_write_locks(manager, result_txt_file_paths):
     """Create write locks for the specified paths to the results text files."""
-
     txt_locks = manager.dict()
     for txt_path in result_txt_file_paths:
         txt_locks[txt_path] = manager.Lock()
@@ -55,7 +51,6 @@ def get_result_txt_file_write_locks(manager, result_txt_file_paths):
 
 def write_result_file_header(output_file, txt_file_path, regex):
     """Writes the header for the results .txt file."""
-
     timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
     output_file.write(f'[{os.path.basename(txt_file_path)}]\n')
     output_file.write(f'[Created: {timestamp}]\n\n')
@@ -77,7 +72,6 @@ def write_matched_file_to_result(output_buffer, matches_list_name, matches_list_
 
 def write_matches_to_result(output_buffer, matches_list, match_type):
     """Writes the matches found to the output buffer."""
-
     if matches_list:
         unique_matches_set = [match for match in set(matches_list)]
         output_buffer.write(f'[Matches found in {match_type}: {len(matches_list)} ({len(matches_list)-len(unique_matches_set)} duplicates omitted)]\n')
@@ -87,8 +81,7 @@ def write_matches_to_result(output_buffer, matches_list, match_type):
 
 def move_log_file_to_results_subdirectory():
     """Moves the log file to the results output subdirectory, or keeps it in the working directory if an output subdirectory was not created."""
-
-    if results_output_subdirectory != '' and os.path.exists(results_output_subdirectory):
+    if os.path.exists(results_output_subdirectory):
         working_directory_log_path = os.path.join(os.getcwd(), 'log.log')
         results_output_subdirectory_log_path = os.path.join(results_output_subdirectory, 'log.log')
         shutil.move(working_directory_log_path, results_output_subdirectory_log_path)

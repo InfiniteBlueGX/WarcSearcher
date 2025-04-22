@@ -8,14 +8,19 @@ class Logger:
         self.warning_count = 0
         self.file_handler = None
     
+    
     def initialize_logging_to_file(self):
         """Initialize logging to a log.log file in the current working directory."""
+
         working_directory = os.getcwd()
         log_path = f"{working_directory}/log.log"
+
         if os.path.exists(log_path):
             os.remove(log_path)
+
         self.file_handler = logging.FileHandler(log_path)
         stream_handler = logging.StreamHandler(sys.stdout)
+
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(message)s",
@@ -23,6 +28,7 @@ class Logger:
             force=True
         )
     
+
     def close_logging_file_handler(self):
         """Close the file handler and remove it from the logger."""
         if self.file_handler:
@@ -30,17 +36,21 @@ class Logger:
             self.file_handler.close()
             self.file_handler = None
     
+
     def increment_error(self):
         """Increment the error count."""
         self.error_count += 1
     
+
     def increment_warning(self):
         """Increment the warning count."""
         self.warning_count += 1
     
+
     def get_final_report(self):
         """Return a summary of the total errors and warnings."""
         return f"Errors: {self.error_count}, Warnings: {self.warning_count}"
+
 
 logger = Logger()
 
