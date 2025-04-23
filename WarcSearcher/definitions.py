@@ -30,29 +30,29 @@ def compile_regex_pattern_from_definition_file(definition_file):
         return None, False
 
 
-def create_result_files_associated_with_regexes_list() -> list[tuple[str, re.Pattern]]:
+def create_result_files_associated_with_regexes_dict() -> dict[str, re.Pattern]:
     """
-    Creates a collection of tuples that pair result text file paths with their corresponding compiled regex patterns.
+    Creates a dictionary that maps result text file paths to their corresponding compiled regex patterns.
     
-    This function reads definition files, compiles regex patterns from them, and pairs
-    each successfuly compiling regex pattern with its corresponding result text file path.
+    This function reads definition files, compiles regex patterns from them, and maps
+    each successfully compiling regex pattern to its corresponding result text file path.
     
     Returns:
-        A list of tuples where each tuple contains (output_file_path, compiled_regex_pattern)
+        A dictionary where each key is an output file path and each value is a compiled regex pattern.
     """
     definition_files = get_definition_txt_files_list()
-    result_file_regex_pattern_tuples_list = []
+    result_file_regex_pattern_dict = {}
     
     for file in definition_files:
         pattern, success = compile_regex_pattern_from_definition_file(file)
         if success:
             result_filepath = get_results_txt_file_path(file)
-            result_file_regex_pattern_tuples_list.append((result_filepath, pattern))
+            result_file_regex_pattern_dict[result_filepath] = pattern
         else:
             log_warning(
                 f"Regex pattern in {file} was invalid and will not be used to search."
             )
     
-    verify_regex_patterns_exist(result_file_regex_pattern_tuples_list)
+    verify_regex_patterns_exist(result_file_regex_pattern_dict)
     
-    return result_file_regex_pattern_tuples_list
+    return result_file_regex_pattern_dict

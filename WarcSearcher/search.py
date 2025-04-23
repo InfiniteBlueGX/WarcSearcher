@@ -6,7 +6,7 @@ from multiprocessing import Manager
 
 import results
 from config import *
-from definitions import create_result_files_associated_with_regexes_list
+from definitions import create_result_files_associated_with_regexes_dict
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
 from record_data import RecordData
@@ -16,11 +16,11 @@ from utilities import *
 SEARCH_QUEUE = None
 
 def start_search():
-    definitions_list = create_result_files_associated_with_regexes_list()
+    results_and_regexes_dict = create_result_files_associated_with_regexes_dict()
     manager = Manager()
 
-    initialized_txt_files = initialize_result_txt_files(definitions_list)
-    txt_locks = get_result_txt_file_write_locks(manager, initialized_txt_files)
+    initialized_txt_files = initialize_result_txt_files(results_and_regexes_dict)
+    results_files_locks_dict = get_results_files_write_locks_dict(manager, initialized_txt_files)
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
@@ -30,8 +30,8 @@ def start_search():
     with ProcessPoolExecutor(max_workers = max_processes) as executor:
         futures = [executor.submit(find_and_write_matches_subprocess, 
                                    SEARCH_QUEUE, 
-                                   definitions_list, 
-                                   txt_locks, 
+                                   results_and_regexes_dict, 
+                                   results_files_locks_dict, 
                                    config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_processes)]
 
         iterate_through_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
@@ -51,7 +51,7 @@ def start_search():
             futures = {executor.submit(merge_zip_archives, 
                                        tempdir,
                                        results.results_output_subdirectory, 
-                                       os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path, _ in definitions_list}
+                                       os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path in results_and_regexes_dict.keys()}
             for future in as_completed(futures):
                 future.result()
 
@@ -102,18 +102,19 @@ def open_warc_gz_file(gz_file_path):
         log_error(f"Error ocurred when reading {gz_file_path}: \n{e}")
 
 
-def find_and_write_matches_subprocess(search_queue, definitions, txt_locks, zip_files_with_matches):
+def find_and_write_matches_subprocess(search_queue, results_and_regexes_dict: dict, results_files_locks_dict: dict, zip_files_with_matches):
     """This function is intended to be run on any number of subprocesses to search for regex matches in the gz files."""
     print(f"Starting search process #{os.getpid()}")
 
     if zip_files_with_matches:
+        # TODO move this out
         zip_archives = {}
-        results_dir = os.path.dirname(definitions[0][0])
+        results_dir = os.path.dirname(next(iter(results_and_regexes_dict.keys())))
         zip_process_dir = os.path.join(f"{results_dir}\\temp", str(os.getpid()))
         os.makedirs(zip_process_dir)           
 
     txt_buffers = {}
-    for txt_path, _ in definitions:
+    for txt_path in results_and_regexes_dict.keys():
         txt_buffers[txt_path] = StringIO()
         if zip_files_with_matches:
             zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
@@ -123,9 +124,9 @@ def find_and_write_matches_subprocess(search_queue, definitions, txt_locks, zip_
         record_obj: RecordData = search_queue.get()
         if record_obj == None:
             # If the record obtained from the search queue is None, it means there are no more records left to process
-            for txt_path, _ in definitions:
+            for txt_path in results_and_regexes_dict.keys():
                 buffer_contents = txt_buffers[txt_path].getvalue()
-                with txt_locks[txt_path]:
+                with results_files_locks_dict[txt_path]:
                     with open(txt_path, "a", encoding='utf-8') as output_file:
                         output_file.write(buffer_contents)
             if zip_files_with_matches:
@@ -135,7 +136,7 @@ def find_and_write_matches_subprocess(search_queue, definitions, txt_locks, zip_
             print(f"Ending search process #{os.getpid()}")
             break
 
-        for txt_path, regex in definitions:
+        for txt_path, regex in results_and_regexes_dict.items():
             matches_name = []
             matches_contents = []
 

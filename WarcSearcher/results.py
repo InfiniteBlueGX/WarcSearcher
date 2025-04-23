@@ -31,22 +31,22 @@ def get_results_txt_file_path(definition_file_path) -> str:
     return os.path.join(results_output_subdirectory, output_filename)
 
 
-def initialize_result_txt_files(definitions_list):
+def initialize_result_txt_files(definitions_dict: dict) -> list[str]:
     """Initialize the results text files by writing headers."""
     initialized_files = []
-    for txt_path, regex in definitions_list:
+    for txt_path, regex in definitions_dict.items():
         with open(txt_path, "a", encoding='utf-8') as output_file:
             write_result_file_header(output_file, txt_path, regex)
         initialized_files.append(txt_path)
     return initialized_files
 
 
-def get_result_txt_file_write_locks(manager, result_txt_file_paths):
-    """Create write locks for the specified paths to the results text files."""
-    txt_locks = manager.dict()
-    for txt_path in result_txt_file_paths:
-        txt_locks[txt_path] = manager.Lock()
-    return txt_locks
+def get_results_files_write_locks_dict(manager, results_file_paths) -> dict:
+    """Create write locks for the specified paths to the results files."""
+    write_locks_dict = manager.dict()
+    for txt_path in results_file_paths:
+        write_locks_dict[txt_path] = manager.Lock()
+    return write_locks_dict
 
 
 def write_result_file_header(output_file, txt_file_path, regex):
