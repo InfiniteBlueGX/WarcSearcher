@@ -6,18 +6,17 @@ from multiprocessing import Manager
 
 import results
 from config import *
-from definitions import create_associated_result_files_with_regex_list
+from definitions import create_result_files_associated_with_regexes_list
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator
 from record_data import RecordData
 from results import *
 from utilities import *
-from zipped_results import *
 
 SEARCH_QUEUE = None
 
 def start_search():
-    definitions_list = create_associated_result_files_with_regex_list()
+    definitions_list = create_result_files_associated_with_regexes_list()
     manager = Manager()
 
     initialized_txt_files = initialize_result_txt_files(definitions_list)
@@ -154,4 +153,4 @@ def find_and_write_matches_subprocess(search_queue, definitions, txt_locks, zip_
                 write_matched_file_to_result(txt_buffers[txt_path], matches_name, matches_contents, record_obj.root_gz_file, record_obj.name)
                 if zip_files_with_matches:
                     zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
-                    write_file_with_match_to_zip(record_obj.contents, record_obj.name, zip_archives[zip_path])
+                    add_file_to_zip_archive(record_obj.name, record_obj.contents, zip_archives[zip_path])

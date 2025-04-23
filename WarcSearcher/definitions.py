@@ -30,7 +30,7 @@ def compile_regex_pattern_from_definition_file(definition_file):
         return None, False
 
 
-def create_associated_result_files_with_regex_list() -> list[tuple[str, re.Pattern]]:
+def create_result_files_associated_with_regexes_list() -> list[tuple[str, re.Pattern]]:
     """
     Creates a collection of tuples that pair result text file paths with their corresponding compiled regex patterns.
     
