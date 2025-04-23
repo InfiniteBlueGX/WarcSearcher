@@ -31,14 +31,15 @@ def get_results_txt_file_path(definition_file_path) -> str:
     return os.path.join(results_output_subdirectory, output_filename)
 
 
-def initialize_result_txt_files(definitions_dict: dict) -> list[str]:
+def write_results_file_headers(definitions_dict: dict):
     """Initialize the results text files by writing headers."""
-    initialized_files = []
-    for txt_path, regex in definitions_dict.items():
-        with open(txt_path, "a", encoding='utf-8') as output_file:
-            write_result_file_header(output_file, txt_path, regex)
-        initialized_files.append(txt_path)
-    return initialized_files
+    for results_file_path, regex in definitions_dict.items():
+        with open(results_file_path, "a", encoding='utf-8') as results_file:
+            timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
+            results_file.write(f'[{os.path.basename(results_file_path)}]\n')
+            results_file.write(f'[Created: {timestamp}]\n\n')
+            results_file.write(f'[Regex used]\n{regex.pattern}\n\n')
+            results_file.write('___________________________________________________________________\n\n')
 
 
 def get_results_files_write_locks_dict(manager, results_file_paths) -> dict:
@@ -47,15 +48,6 @@ def get_results_files_write_locks_dict(manager, results_file_paths) -> dict:
     for txt_path in results_file_paths:
         write_locks_dict[txt_path] = manager.Lock()
     return write_locks_dict
-
-
-def write_result_file_header(output_file, txt_file_path, regex):
-    """Writes the header for the results .txt file."""
-    timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
-    output_file.write(f'[{os.path.basename(txt_file_path)}]\n')
-    output_file.write(f'[Created: {timestamp}]\n\n')
-    output_file.write(f'[Regex used]\n{regex.pattern}\n\n')
-    output_file.write('___________________________________________________________________\n\n')
 
 
 def write_matched_file_to_result(output_buffer, matches_list_name, matches_list_contents, root_gz_file, containing_file):

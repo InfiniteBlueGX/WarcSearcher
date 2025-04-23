@@ -19,8 +19,8 @@ def start_search():
     results_and_regexes_dict = create_result_files_associated_with_regexes_dict()
     manager = Manager()
 
-    initialized_txt_files = initialize_result_txt_files(results_and_regexes_dict)
-    results_files_locks_dict = get_results_files_write_locks_dict(manager, initialized_txt_files)
+    write_results_file_headers(results_and_regexes_dict)
+    results_files_write_locks_dict = get_results_files_write_locks_dict(manager, results_and_regexes_dict.keys())
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
@@ -31,7 +31,7 @@ def start_search():
         futures = [executor.submit(find_and_write_matches_subprocess, 
                                    SEARCH_QUEUE, 
                                    results_and_regexes_dict, 
-                                   results_files_locks_dict, 
+                                   results_files_write_locks_dict, 
                                    config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_processes)]
 
         iterate_through_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
