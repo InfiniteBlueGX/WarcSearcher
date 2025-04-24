@@ -8,7 +8,7 @@ from search_timer import SearchTimer
 searchTimer = SearchTimer()
 
 
-def setup_search():
+def setup():
     """Initializes logging, registers exit handler, reads configuration variables, and creates the results directory."""
     searchTimer.start_timer()
     initialize_logging()
@@ -32,7 +32,7 @@ def on_exit():
 
 def main() -> int:
     """Program entry point."""
-    setup_search()
+    setup()
     start_search()
 
     return 0

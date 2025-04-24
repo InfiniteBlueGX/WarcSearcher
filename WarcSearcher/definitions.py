@@ -3,7 +3,7 @@ import re
 
 import config
 from logger import *
-from results import get_results_txt_file_path
+from results import get_results_file_path
 from validators import verify_regex_patterns_exist
 
 
@@ -41,18 +41,18 @@ def create_result_files_associated_with_regexes_dict() -> dict[str, re.Pattern]:
         A dictionary where each key is an output file path and each value is a compiled regex pattern.
     """
     definition_files = get_definition_txt_files_list()
-    result_file_regex_pattern_dict = {}
+    results_file_regex_pattern_dict = {}
     
-    for file in definition_files:
-        pattern, success = compile_regex_pattern_from_definition_file(file)
+    for definition_file_path in definition_files:
+        pattern, success = compile_regex_pattern_from_definition_file(definition_file_path)
         if success:
-            result_filepath = get_results_txt_file_path(file)
-            result_file_regex_pattern_dict[result_filepath] = pattern
+            results_filepath = get_results_file_path(definition_file_path)
+            results_file_regex_pattern_dict[results_filepath] = pattern
         else:
             log_warning(
-                f"Regex pattern in {file} was invalid and will not be used to search."
+                f"Regex pattern in {definition_file_path} was invalid and will not be used to search."
             )
     
-    verify_regex_patterns_exist(result_file_regex_pattern_dict)
+    verify_regex_patterns_exist(results_file_regex_pattern_dict)
     
-    return result_file_regex_pattern_dict
+    return results_file_regex_pattern_dict

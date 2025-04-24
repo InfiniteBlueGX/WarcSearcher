@@ -4,7 +4,6 @@ from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
 from io import StringIO
 from multiprocessing import Manager
 
-import results
 from config import *
 from definitions import create_result_files_associated_with_regexes_dict
 from fastwarc.stream_io import FileStream, GZipStream
@@ -20,7 +19,7 @@ def start_search():
     manager = Manager()
 
     write_results_file_headers(results_and_regexes_dict)
-    results_files_write_locks_dict = get_results_files_write_locks_dict(manager, results_and_regexes_dict.keys())
+    result_files_write_locks_dict = get_result_files_write_locks_dict(manager, results_and_regexes_dict.keys())
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
@@ -31,7 +30,7 @@ def start_search():
         futures = [executor.submit(find_and_write_matches_subprocess, 
                                    SEARCH_QUEUE, 
                                    results_and_regexes_dict, 
-                                   results_files_write_locks_dict, 
+                                   result_files_write_locks_dict, 
                                    config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_processes)]
 
         iterate_through_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
@@ -45,17 +44,9 @@ def start_search():
         wait(futures)
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        log_info("Finalizing the zip archives...")
-        tempdir = os.path.join(results.results_output_subdirectory, "temp")
-        with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(merge_zip_archives, 
-                                       tempdir,
-                                       results.results_output_subdirectory, 
-                                       os.path.basename(os.path.splitext(txt_path)[0])): txt_path for txt_path in results_and_regexes_dict.keys()}
-            for future in as_completed(futures):
-                future.result()
+        finalize_results_zip_archives(results_and_regexes_dict.keys())
 
-        shutil.rmtree(tempdir)
+
 
 
 def iterate_through_gz_files(gz_directory_path):
@@ -106,6 +97,7 @@ def find_and_write_matches_subprocess(search_queue, results_and_regexes_dict: di
     """This function is intended to be run on any number of subprocesses to search for regex matches in the gz files."""
     print(f"Starting search process #{os.getpid()}")
 
+    # Make a subdirectory in the temp zip directory for this processes' output of zipped results
     if zip_files_with_matches:
         # TODO move this out
         zip_archives = {}
@@ -113,6 +105,7 @@ def find_and_write_matches_subprocess(search_queue, results_and_regexes_dict: di
         zip_process_dir = os.path.join(f"{results_dir}\\temp", str(os.getpid()))
         os.makedirs(zip_process_dir)           
 
+    # Set up the output buffers for each regex result file and make an empty zip archive for each regex result file
     txt_buffers = {}
     for txt_path in results_and_regexes_dict.keys():
         txt_buffers[txt_path] = StringIO()
@@ -120,10 +113,13 @@ def find_and_write_matches_subprocess(search_queue, results_and_regexes_dict: di
             zip_path = os.path.join(zip_process_dir, f"{os.path.basename(os.path.splitext(txt_path)[0])}.zip")
             zip_archives[zip_path] = zipfile.ZipFile(zip_path, 'a', zipfile.ZIP_DEFLATED)
 
+    # Primary loop to await and process records from the search queue
     while True:
+        # Get a record from the search queue. This will block execution until a record is available.
         record_obj: RecordData = search_queue.get()
+
         if record_obj == None:
-            # If the record obtained from the search queue is None, it means there are no more records left to process
+            # If the record obtained from the search queue is None, it means the main process has signaled to stop searching.
             for txt_path in results_and_regexes_dict.keys():
                 buffer_contents = txt_buffers[txt_path].getvalue()
                 with results_files_locks_dict[txt_path]:

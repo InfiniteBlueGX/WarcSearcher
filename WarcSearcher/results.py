@@ -1,6 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
+from multiprocessing.managers import SyncManager
 import shutil
 
+from utilities import merge_zip_archives
 import config
 from logger import *
 
@@ -24,11 +27,19 @@ def initialize_results_output_subdirectory():
         log_info("Temporary folder for zipped results created in the results subdirectory.")
 
 
-def get_results_txt_file_path(definition_file_path) -> str:
-    """Returns a file path for the results text file based on the definition file name."""
-    filename_without_extension = os.path.splitext(os.path.basename(definition_file_path))[0]
-    output_filename = f"{filename_without_extension}_results.txt"
-    return os.path.join(results_output_subdirectory, output_filename)
+def get_results_file_path(definition_file_path) -> str:
+    """Returns a file path for the results text file with a name similar to that of the definition file's name."""
+    definition_file_name_no_extension = os.path.splitext(os.path.basename(definition_file_path))[0]
+    results_file_name = f"{definition_file_name_no_extension}_results.txt"
+    return os.path.join(results_output_subdirectory, results_file_name)
+
+
+def get_result_files_write_locks_dict(manager: SyncManager, results_file_paths) -> dict:
+    """Create write locks for the specified paths to the results files."""
+    write_locks_dict = manager.dict()
+    for txt_path in results_file_paths:
+        write_locks_dict[txt_path] = manager.Lock()
+    return write_locks_dict
 
 
 def write_results_file_headers(definitions_dict: dict):
@@ -40,14 +51,6 @@ def write_results_file_headers(definitions_dict: dict):
             results_file.write(f'[Created: {timestamp}]\n\n')
             results_file.write(f'[Regex used]\n{regex.pattern}\n\n')
             results_file.write('___________________________________________________________________\n\n')
-
-
-def get_results_files_write_locks_dict(manager, results_file_paths) -> dict:
-    """Create write locks for the specified paths to the results files."""
-    write_locks_dict = manager.dict()
-    for txt_path in results_file_paths:
-        write_locks_dict[txt_path] = manager.Lock()
-    return write_locks_dict
 
 
 def write_matched_file_to_result(output_buffer, matches_list_name, matches_list_contents, root_gz_file, containing_file):
@@ -86,3 +89,17 @@ def log_results_output_path():
         # The results output subdirectory was not created likely due to an error. 
         # Log the path to the log file in the current working directory instead.
         log_info(f"No results folder was created. Log file output to: {os.getcwd()}\\log")
+
+
+def finalize_results_zip_archives(results_file_paths):
+    log_info("Finalizing the zip archives...")
+    tempdir = os.path.join(results_output_subdirectory, "temp")
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(merge_zip_archives, 
+                                       tempdir,
+                                       results_output_subdirectory, 
+                                       os.path.basename(os.path.splitext(results_path)[0])): results_path for results_path in results_file_paths}
+        for future in as_completed(futures):
+            future.result()
+
+    shutil.rmtree(tempdir)

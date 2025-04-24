@@ -51,7 +51,7 @@ def add_file_to_zip_archive(file_name, file_data, zip_archive):
 def merge_zip_archives(parent_dir, output_dir, archive_name):
     """
     Merges zip archives with the same name in subdirectories of the parent directory into a single zip archive. 
-    This is necessary because each search process creates independent zip archives.
+    This is necessary because each search process creates independent zip archives for the data it processed.
     """
     combined_zip = os.path.join(output_dir, f"{archive_name}.zip")
     added_files = set()
