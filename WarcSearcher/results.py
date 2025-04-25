@@ -27,7 +27,7 @@ def initialize_results_output_subdirectory():
         log_info("Temporary folder for zipped results created in the results subdirectory.")
 
 
-def get_results_file_path(definition_file_path) -> str:
+def get_results_file_path(definition_file_path: str) -> str:
     """Returns a file path for the results text file with a name similar to that of the definition file's name."""
     definition_file_name_no_extension = os.path.splitext(os.path.basename(definition_file_path))[0]
     results_file_name = f"{definition_file_name_no_extension}_results.txt"
@@ -53,10 +53,10 @@ def write_results_file_headers(definitions_dict: dict):
             results_file.write('___________________________________________________________________\n\n')
 
 
-def write_matched_file_to_result(output_buffer, matches_list_name, matches_list_contents, root_gz_file, containing_file):
+def write_matched_file_to_result(output_buffer, matches_list_name, matches_list_contents, parent_warc_gz_file, containing_file):
     """Writes the matched file information to the output buffer."""
 
-    output_buffer.write(f'[Archive: {root_gz_file}]\n')
+    output_buffer.write(f'[Archive: {parent_warc_gz_file}]\n')
     output_buffer.write(f'[File: {containing_file}]\n\n')
 
     write_matches_to_result(output_buffer, matches_list_name, 'file name')

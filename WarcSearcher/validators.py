@@ -35,7 +35,7 @@ def validate_results_output_directory(results_output_directory: str):
         sys.exit()
 
 
-def validate_gz_file_existence(gz_directory_path: str, gz_files):
+def validate_gz_files_exist(gz_directory_path: str, gz_files):
     if not gz_files:
         log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
         sys.exit()

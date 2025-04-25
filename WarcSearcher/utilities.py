@@ -1,10 +1,11 @@
 import glob
 import os
+import re
 import zipfile
 import psutil
 
 
-def find_regex_matches(input_string, regex_pattern) -> list:
+def find_regex_matches(input_string: str, regex_pattern: re.Pattern) -> list:
     """Find all matches of the regex pattern in the input string."""
     return [match.group() for match in regex_pattern.finditer(input_string)]
 
@@ -48,7 +49,7 @@ def add_file_to_zip_archive(file_name, file_data, zip_archive):
         zip_archive.writestr(sanitized_file_name, file_data)
 
 
-def merge_zip_archives(parent_dir, output_dir, archive_name):
+def merge_zip_archives(parent_dir: str, output_dir: str, archive_name: str):
     """
     Merges zip archives with the same name in subdirectories of the parent directory into a single zip archive. 
     This is necessary because each search process creates independent zip archives for the data it processed.
