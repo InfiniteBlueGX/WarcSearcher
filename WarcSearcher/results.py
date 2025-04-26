@@ -53,19 +53,19 @@ def write_results_file_headers(definitions_dict: dict):
             results_file.write('___________________________________________________________________\n\n')
 
 
-def write_matched_file_to_result(output_buffer, matches_list_name, matches_list_contents, parent_warc_gz_file, containing_file):
+def write_matched_file_to_output_buffer(output_buffer, matches_list_name, matches_list_contents, parent_warc_gz_file, containing_file):
     """Writes the matched file information to the output buffer."""
 
     output_buffer.write(f'[Archive: {parent_warc_gz_file}]\n')
     output_buffer.write(f'[File: {containing_file}]\n\n')
 
-    write_matches_to_result(output_buffer, matches_list_name, 'file name')
-    write_matches_to_result(output_buffer, matches_list_contents, 'file contents')
+    write_matches_to_output_buffer(output_buffer, matches_list_name, 'file name')
+    write_matches_to_output_buffer(output_buffer, matches_list_contents, 'file contents')
 
     output_buffer.write('___________________________________________________________________\n\n')
 
 
-def write_matches_to_result(output_buffer, matches_list, match_type):
+def write_matches_to_output_buffer(output_buffer, matches_list, match_type):
     """Writes the matches found to the output buffer."""
     if matches_list:
         unique_matches_set = [match for match in set(matches_list)]

@@ -127,7 +127,7 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict, results_
 
 
 def initialize_process_resources(results_and_regexes_dict):
-    """Initializes resources needed for the search process."""
+    """Initializes resources needed for the search worker process."""
     
     result_files_write_buffers = {
         results_file_path: StringIO() 
@@ -154,7 +154,7 @@ def initialize_process_resources(results_and_regexes_dict):
 
 
 def search_warc_record(record_data, results_and_regexes_dict, result_files_write_buffers, zip_archives_dict):
-    """Processes a single record, searching for regex matches."""
+    """Processes a single record, searching for regex matches. If matches are found, they are written to the appropriate result file."""
     for results_file_path, regex in results_and_regexes_dict.items():
         # Find matches in the filename
         matches_name = find_regex_matches(record_data.name, regex)
@@ -172,8 +172,7 @@ def search_warc_record(record_data, results_and_regexes_dict, result_files_write
         
         # Handle matches if found
         if matches_name or matches_contents:
-            # Write to results buffer
-            write_matched_file_to_result(
+            write_matched_file_to_output_buffer(
                 result_files_write_buffers[results_file_path], 
                 matches_name, 
                 matches_contents, 
@@ -196,16 +195,13 @@ def search_warc_record(record_data, results_and_regexes_dict, result_files_write
 
 
 
-def finalize_process_resources(results_and_regexes_dict, results_files_locks_dict, 
-                    result_files_write_buffers, zip_archives_dict):
-    """Finalize the search process by writing buffers to files and closing zip archives."""
-    # Write all buffers to their respective files
+def finalize_process_resources(results_and_regexes_dict, results_files_locks_dict, result_files_write_buffers, zip_archives_dict):
+    """Finalize the search worker process by writing buffers to files and closing zip archives."""
     for results_file_path in results_and_regexes_dict.keys():
         buffer_contents = result_files_write_buffers[results_file_path].getvalue()
         with results_files_locks_dict[results_file_path]:
             with open(results_file_path, "a", encoding='utf-8') as output_file:
                 output_file.write(buffer_contents)
     
-    # Close all zip archives
     for zip_file in zip_archives_dict:
         zip_archives_dict[zip_file].close()
