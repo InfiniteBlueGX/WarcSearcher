@@ -139,9 +139,8 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict, results_
 
             matches_name = find_regex_matches(record_data.name, regex)
 
-            if is_file_binary(record_data.contents):
-                # If the file is binary data (image, video, audio, etc), only search the file name
-                # TODO maybe make this an optional config.ini setting
+            if not config.settings["SEARCH_BINARY_FILES"] and is_file_binary(record_data.contents):
+                # If the file is binary and we are not searching binary files, skip searching the contents
                 matches_contents = ''
             else:    
                 matches_contents = find_regex_matches(record_data.contents.decode('utf-8', 'ignore'), regex)
