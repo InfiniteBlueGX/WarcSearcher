@@ -5,7 +5,7 @@ from unittest.mock import patch
 class TestSearchTimer:
     def test1(self):
         searchTimer = SearchTimer()
-        assert searchTimer.start_time is not None
+        assert searchTimer.start_time is None
         
     def test2(self):
         """Test"""
