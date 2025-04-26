@@ -81,12 +81,11 @@ def read_warc_gz_records(warc_gz_file_path: str):
                 record_content = record.reader.read()
                 record_name = record.headers['WARC-Target-URI']
                 SEARCH_QUEUE.put(WarcRecord(parent_warc_gz_file=warc_gz_file_path, name=record_name, contents=record_content))
-                #print(f"{SEARCH_QUEUE.qsize()} records in search queue")
 
                 if records_read % 1000 == 0:
-                    log_info(f"Read {records_read} response records from the WARC in {warc_gz_file_path}")
+                    #print(f"{SEARCH_QUEUE.qsize()} records in search queue")
+                    log_info(f"Read {records_read} response records from the WARC in {os.path.basename(os.path.splitext(warc_gz_file_path)[0])}")
                     process = psutil.Process()
-                    print(f"{get_total_memory_in_use(process)}")
                     while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
                         log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
                         time.sleep(10)
