@@ -30,7 +30,8 @@ def start_search():
         futures = [executor.submit(search_worker_process, 
                                    SEARCH_QUEUE, 
                                    results_and_regexes_dict, 
-                                   result_files_write_locks_dict) for _ in range(max_processes)]
+                                   result_files_write_locks_dict,
+                                   config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_processes)]
 
         compile_and_read_warc_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
 
@@ -93,16 +94,20 @@ def read_warc_gz_records(warc_gz_file_path: str):
 
 
 
-def search_worker_process(search_queue, results_and_regexes_dict: dict, results_files_locks_dict: dict):
+def search_worker_process(search_queue, results_and_regexes_dict: dict, 
+                         results_files_locks_dict: dict, zip_files_with_matches: bool):
     """
     Worker process that continuously searches for regex matches in records from the search queue.
     """
     print(f"Starting search process #{os.getpid()}")
-    result_files_write_buffers, zip_archives_dict = initialize_process_resources(results_and_regexes_dict)
+    result_files_write_buffers, zip_archives_dict = initialize_process_resources(
+        results_and_regexes_dict, 
+        zip_files_with_matches
+    )
     
     # Primary loop to await and process records from the search queue
     while True:
-        # Get a record from the search queue. The process will not proceed until a record is retrieved.
+        # Get a record from the search queue. This will block execution until a record is available.
         record_data: RecordData = search_queue.get()
         
         if record_data is None:
@@ -113,7 +118,6 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict, results_
                 result_files_write_buffers, 
                 zip_archives_dict
             )
-            
             print(f"Ending search process #{os.getpid()}")
             break
         
@@ -121,23 +125,24 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict, results_
             record_data, 
             results_and_regexes_dict, 
             result_files_write_buffers, 
-            zip_archives_dict
+            zip_archives_dict, 
+            zip_files_with_matches
         )
 
 
 
-def initialize_process_resources(results_and_regexes_dict):
-    """Initializes resources needed for the search worker process."""
-    
+def initialize_process_resources(results_and_regexes_dict, zip_files_with_matches):
+    """Initialize resources needed for the search process."""
+
     result_files_write_buffers = {
         results_file_path: StringIO() 
         for results_file_path in results_and_regexes_dict.keys()
     }
     
     zip_archives_dict = {}
-    if config.settings["ZIP_FILES_WITH_MATCHES"]:
+    if zip_files_with_matches:
         results_dir = os.path.dirname(next(iter(results_and_regexes_dict.keys())))
-        zip_process_dir = os.path.join(f"{results_dir}/temp", str(os.getpid()))
+        zip_process_dir = os.path.join(f"{results_dir}\\temp", str(os.getpid()))
         os.makedirs(zip_process_dir)
         
         for results_file_path in results_and_regexes_dict.keys():
@@ -153,8 +158,9 @@ def initialize_process_resources(results_and_regexes_dict):
 
 
 
-def search_warc_record(record_data, results_and_regexes_dict, result_files_write_buffers, zip_archives_dict):
-    """Processes a single record, searching for regex matches. If matches are found, they are written to the appropriate result file."""
+def search_warc_record(record_data, results_and_regexes_dict, result_files_write_buffers, 
+                  zip_archives_dict, zip_files_with_matches):
+    """Processes a single record, searching for regex matches. If matches are found, they are written to the corresponding result file."""
     for results_file_path, regex in results_and_regexes_dict.items():
         # Find matches in the filename
         matches_name = find_regex_matches(record_data.name, regex)
@@ -180,8 +186,7 @@ def search_warc_record(record_data, results_and_regexes_dict, result_files_write
                 record_data.name
             )
             
-            # Add to zip archive if needed
-            if config.settings["ZIP_FILES_WITH_MATCHES"]:
+            if zip_files_with_matches:
                 zip_process_dir = os.path.dirname(next(iter(zip_archives_dict.keys())))
                 zip_archive_path = os.path.join(
                     zip_process_dir, 
@@ -195,8 +200,9 @@ def search_warc_record(record_data, results_and_regexes_dict, result_files_write
 
 
 
-def finalize_process_resources(results_and_regexes_dict, results_files_locks_dict, result_files_write_buffers, zip_archives_dict):
-    """Finalize the search worker process by writing buffers to files and closing zip archives."""
+def finalize_process_resources(results_and_regexes_dict, results_files_locks_dict, 
+                    result_files_write_buffers, zip_archives_dict):
+    """Finalize the search worker process by writing output buffers to result files and closing zip archives."""
     for results_file_path in results_and_regexes_dict.keys():
         buffer_contents = result_files_write_buffers[results_file_path].getvalue()
         with results_files_locks_dict[results_file_path]:
