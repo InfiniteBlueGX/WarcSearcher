@@ -6,6 +6,8 @@ WarcSearcher is designed to perform multiple simultaneous regex searches, provid
 
 WarcSearcher will output the results in text format - one results file for each definition. Optionally, it can extract any record from the WARC.gz that yielded a match and saves the file to a zip archive.
 
+![WarcSearcher Diagram](diagram.png)
+
 ## Features
 
 * Processes all `response` records in multiple WARC.gz files
