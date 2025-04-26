@@ -142,7 +142,7 @@ def initialize_process_resources(results_and_regexes_dict, zip_files_with_matche
     zip_archives_dict = {}
     if zip_files_with_matches:
         results_dir = os.path.dirname(next(iter(results_and_regexes_dict.keys())))
-        zip_process_dir = os.path.join(f"{results_dir}\\temp", str(os.getpid()))
+        zip_process_dir = os.path.join(f"{results_dir}/temp", str(os.getpid()))
         os.makedirs(zip_process_dir)
         
         for results_file_path in results_and_regexes_dict.keys():
