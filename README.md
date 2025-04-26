@@ -1,5 +1,7 @@
 # WarcSearcher
 
+![GitHub Actions](https://github.com/InfiniteBlueGX/WarcSearcher/actions/workflows/test-warcsearcher.yml/badge.svg)
+
 A Python program that performs regular expression keyword searches over the contents of any number of local WARC.gz (Web Archive) files. [WARC specification](https://iipc.github.io/warc-specifications/specifications/warc-format/warc-1.1/)
 
 WarcSearcher is designed to perform multiple simultaneous regex queries against records read from the WARC.gz files. These queries are supplied as "Definitions" - text files containing a regex to search with.
