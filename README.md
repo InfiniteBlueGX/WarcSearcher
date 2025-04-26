@@ -1,33 +1,34 @@
 # WarcSearcher
 
-A Python tool that performs regex keyword searches iteratively over the contents of local warc.gz files. Uses Python 3.12.2. (Currently in active development)
+A Python tool that performs regular expression keyword searches over the contents of local warc.gz files ([WARC specification](https://iipc.github.io/warc-specifications/specifications/warc-format/warc-1.1/)).
 
-WarcSearcher is designed to facilitate the parsing of large web archives ([WARC files](https://iipc.github.io/warc-specifications/specifications/warc-format/warc-1.1/)) with a variety of search criteria. It also aims to package the results for sharing in collaborative online settings.
+WarcSearcher is designed to perform multiple simultaneous regex searches, provided as "Definitions" - text files containing a regex to search with. WarcSearcher searches all warc.gz files within the target directory against all regexes from the definition files.
 
-WarcSearcher uses the [FastWARC](https://resiliparse.chatnoir.eu/en/latest/man/fastwarc.html) library for faster warc.gz processing compared to similar libraries such as warcio.
+WarcSearcher will output the results in text format - one results file for each definition. Optionally, it can extract any record from the WARC.gz that yielded a match and saves the file to a zip archive.
 
 ## Features
 
-* Regex searching of all `response` records in a WARC
-* Support for any number of regex "definitions" to search with - results output is segregated by definition
-* Results output to .txt file per-definition
-* Optional per-definition .zip output of all files from the WARC that yielded a match
-* Multiprocessed warc.gz processing
-* File name and contents searched (binary file data is skipped)
+* Processes all `response` records in multiple WARC.gz files
+* Optional per-definition .zip archives of all files from the WARC that yielded a match
+* Multiprocessed regex searching and output
 
 ## Setup
 
-[Work in progress]
+* Ensure Python is installed and download/clone the repository.
+* Using a terminal, navigate to the repository and install all required libraries: `pip install -r requirements.txt`
+* Run `WarcSearcher.py`.
 
-* Ensure Python is installed and you are able to install packages via `pip install`.
-* Acquire WarcSearcher.py, config.ini, and requirements.txt, and place them in a local directory.
-* Using a terminal, navigate to the directory you placed the files in and install all required libraries: `pip install -r requirements.txt`
-* Edit config.ini to provide the program with the following required information:
-  * `archives_directory` - (Required) The directory containing your warc.gz files. Subfolders will be searched recursively during program execution.
-  * `definitions_directory` - (Required) The directory containing your regular expressions saved as .txt files. See the Definitions section for more details.
-  * `findings_output_path` - (Optional) The directory for the results to be output to. Defaults to the current working directory if empty or invalid.
-* Optionally, you may also want to modify these fields:
-  * `zip_files_with_matches` - (Optional) Boolean indicating whether to add all files that yielded a match to a per-definition .zip file in the output directory. It is highly recommended to be used in order to better ascertain the context of matches - however, it can potentially consume large amounts of disk space depending on the regexes used to search. Use with discretion. Defaults to `False`.
-  * `max_concurrent_archive_read_threads` - (Optional) The number of concurrent threads on the process responsible for reading in the records from the WARC files. Each .gz archive is assigned its own thread up to the maximum specified. Use with discretion. Defaults to `4`.
-  * `max_concurrent_search_processes` - (Optional) The number of concurrent processes to perform the regex searches with. Defaults to `None` (which will assign one process per each available logical processor on your machine - set it lower if you want more headroom for multitasking).
-  * `MAX_RAM_USAGE_BYTES` - (Optional) The target process memory such that the PC's RAM isn't fully consumed when reading in multiple large WARC files. The program will wait for the search processes to clear out items from the queue until the process memory falls below the specified target. Defaults to `2000000000` (1GB).
+## Configuration
+
+### Required
+
+* `WARC_GZ_ARCHIVES_DIRECTORY` - The directory containing your warc.gz files. Subfolders will be searched recursively during program execution.
+* `SEARCH_REGEX_DEFINITIONS_DIRECTORY` - The directory containing the .txt files that contain regular expressions.
+* `RESULTS_OUTPUT_DIRECTORY` - The directory for the results to be output to. The results for the execution will be stored in a timestamped subdirectory.
+
+### Optional
+
+* `ZIP_FILES_WITH_MATCHES` - Default: `False`. When set to True, any WARC record that produced a match for a definition will be extracted from the WARC.gz file and saved to a zip archive, named similarly to the results text file.
+* `MAX_CONCURRENT_SEARCH_PROCESSES` - Default: `4`. The number of concurrent processes to perform the regex searches with. These processes are independent of the main process responsible for reading the WARC records. Setting this higher may not necessarily perform the search faster - execution time is highly variable depending on your number of logical processors, regexes used, and size and quantity of the warc.gz files to be searched. Reverts to maximum logical processors available on the PC if it exceeds that number.
+* `MAX_RAM_USAGE_BYTES` - Default: `2000000000` (2GB). Target value in bytes for how much RAM is consumed by the WarcSearcher process. This is a failsafe to ensure that RAM is not exhausted when the search processes cannot keep up with the pace of WARC records being read in by the main process.
+* `SEARCH_BINARY_FILES` - Default: `False`. Boolean indicating whether binary files (images, video, music, etc) should be searched. Setting this to `True` may greatly increase search time, but will be more thorough.
