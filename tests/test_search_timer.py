@@ -8,6 +8,7 @@ class TestSearchTimer:
         assert searchTimer.start_time is None
         
     def test2(self):
+        """Test"""
         searchTimer = SearchTimer()
         searchTimer.start_timer()
         assert searchTimer.start_time is not None
