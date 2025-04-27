@@ -7,7 +7,7 @@ from multiprocessing import Manager
 from config import *
 from definitions import create_result_files_associated_with_regexes_dict
 from fastwarc.stream_io import FileStream, GZipStream
-from fastwarc.warc import ArchiveIterator
+from fastwarc.warc import ArchiveIterator, WarcRecordType
 from warc_record import WarcRecord
 from results import *
 from utilities import *
@@ -65,33 +65,39 @@ def find_and_open_warc_gz_files(gz_directory_path: str):
 
 
 def read_warc_gz_records(warc_gz_file_path: str):
-    log_info(f"Reading records from {warc_gz_file_path}")
-    gz_file_stream = GZipStream(FileStream(warc_gz_file_path, 'rb'))
+    log_info(f"Reading records from {get_file_base_name(warc_gz_file_path)}...")
 
-    try:
-        records = ArchiveIterator(gz_file_stream, strict_mode=False)
-        if not any(records):
-            log_warning(f"No WARC records found in {warc_gz_file_path}")
-            return
+    # FastWARC optimization by using a GZipStream: https://resiliparse.chatnoir.eu/en/stable/man/fastwarc.html#iterating-warc-files
+    with FileStream(warc_gz_file_path, 'rb') as file_stream:
+        with GZipStream(file_stream) as gz_file_stream:
+            try:
+                records = ArchiveIterator(gz_file_stream, strict_mode=False, record_types=WarcRecordType.response)
+                if not any(records):
+                    log_warning(f"No WARC records found in {get_file_base_name(warc_gz_file_path)}")
+                    return
 
-        records_read = 0
-        for record in records:
-            if record.headers['WARC-Type'] == 'response':
-                records_read += 1
-                record_name = record.headers['WARC-Target-URI']
-                record_content = record.reader.read()
-                
-                SEARCH_QUEUE.put(WarcRecord(parent_warc_gz_file=warc_gz_file_path, name=record_name, contents=record_content))
+                records_read = 0
+                for record in records:
+                    records_read += 1
+                    record_name = record.headers['WARC-Target-URI']
+                    record_content = record.reader.read()
+                    
+                    SEARCH_QUEUE.put(WarcRecord(parent_warc_gz_file=warc_gz_file_path, name=record_name, contents=record_content))
 
-                if records_read % 1000 == 0:
-                    #print(f"{SEARCH_QUEUE.qsize()} records in search queue")
-                    log_info(f"Read {records_read} response records from the WARC in {os.path.basename(os.path.splitext(warc_gz_file_path)[0])}")
-                    process = psutil.Process()
-                    while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
-                        log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
-                        time.sleep(10)
-    except Exception as e:
-        log_error(f"Error ocurred when reading {warc_gz_file_path}: \n{e}")
+                    monitor_process_memory(records_read)
+
+            except Exception as e:
+                log_error(f"Error ocurred when reading {get_file_base_name(warc_gz_file_path)}: \n{e}")
+
+
+def monitor_process_memory(records_read):
+    if records_read % 1000 == 0:
+        #print(f"{SEARCH_QUEUE.qsize()} records in search queue")
+        # log_info(f"Read {records_read} response records from the WARC in {os.path.basename(os.path.splitext(warc_gz_file_path)[0])}")
+        process = psutil.Process()
+        while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
+            log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
+            time.sleep(10)
 
 
 

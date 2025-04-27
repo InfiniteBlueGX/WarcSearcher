@@ -10,6 +10,11 @@ def find_regex_matches(input_string: str, regex_pattern: re.Pattern) -> list:
     return [match.group() for match in regex_pattern.finditer(input_string)]
 
 
+def get_file_base_name(file_path: str) -> str:
+    """Returns the base name of a file without its extension."""
+    return os.path.splitext(os.path.basename(file_path))[0]
+
+
 def is_file_binary(file_data) -> bool:
     """Returns True if the file is binary data, False if it is text."""
     text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
