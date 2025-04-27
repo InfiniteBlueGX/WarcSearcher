@@ -15,6 +15,8 @@ from utilities import *
 SEARCH_QUEUE = None
 
 def start_search():
+    gz_files_list = validate_and_get_warc_gz_files_list(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
+
     results_and_regexes_dict = create_result_files_associated_with_regexes_dict()
     manager = Manager()
 
@@ -24,19 +26,21 @@ def start_search():
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
 
-    max_processes: int = config.settings["MAX_SEARCH_PROCESSES"]-1 if config.settings["MAX_SEARCH_PROCESSES"] > 1 else 1
+    # Set up the search worker processes, but reserve one logical processor for the main process to read the gz files.
+    max_worker_processes: int = config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"]-1 if config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"] > 1 else 1
 
-    with ProcessPoolExecutor(max_workers = max_processes) as executor:
+    with ProcessPoolExecutor(max_workers = max_worker_processes) as executor:
         futures = [executor.submit(search_worker_process, 
                                    SEARCH_QUEUE, 
                                    results_and_regexes_dict, 
                                    result_files_write_locks_dict,
-                                   config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_processes)]
+                                   config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_worker_processes)]
 
-        find_and_open_warc_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
+        # Main process execution: read the gz files and put records into the search queue
+        open_warc_gz_files(gz_files_list)
 
-        # Put a None object in the queue for each process to signal them to stop searching
-        for _ in range(max_processes):
+        # Once finished reading, put a None object in the queue for each worker process to signal them to stop
+        for _ in range(max_worker_processes):
             SEARCH_QUEUE.put(None)
 
         log_info("Waiting on search processes to finish - This may take a while, please wait...")
@@ -47,16 +51,9 @@ def start_search():
         finalize_results_zip_archives(results_and_regexes_dict.keys())
 
 
-
-
-def find_and_open_warc_gz_files(gz_directory_path: str):
-    gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
-
-    validate_gz_files_exist(gz_directory_path, gz_files)
-
+def open_warc_gz_files(gz_files: list):
     # Set up 4 threads to read the gz files concurrently - one thread per gz file. 
     # Each thread will open a gz file and put records into the search queue.
-    # TODO experiment with different values
     with ThreadPoolExecutor(max_workers = 4) as executor:
         tasks = {executor.submit(read_warc_gz_records, gz_file_path) for gz_file_path in gz_files}
 
@@ -65,24 +62,33 @@ def find_and_open_warc_gz_files(gz_directory_path: str):
 
 
 def read_warc_gz_records(warc_gz_file_path: str):
-    log_info(f"Reading records from {get_file_base_name(warc_gz_file_path)}...")
+    log_info(f"Reading records from {get_file_base_name(warc_gz_file_path)}.gz")
 
     # FastWARC optimization by using a GZipStream: https://resiliparse.chatnoir.eu/en/stable/man/fastwarc.html#iterating-warc-files
     with FileStream(warc_gz_file_path, 'rb') as file_stream:
         with GZipStream(file_stream) as gz_file_stream:
             try:
-                records = ArchiveIterator(gz_file_stream, strict_mode=False, record_types=WarcRecordType.response)
+                records = ArchiveIterator(
+                    gz_file_stream, 
+                    strict_mode=False, 
+                    record_types=WarcRecordType.response
+                )
+                
                 if not any(records):
-                    log_warning(f"No WARC records found in {get_file_base_name(warc_gz_file_path)}")
+                    log_warning(f"No WARC records found in {get_file_base_name(warc_gz_file_path)}.gz")
                     return
 
-                records_read = 0
-                for record in records:
-                    records_read += 1
+                for records_read, record in enumerate(records, start=1):
                     record_name = record.headers['WARC-Target-URI']
                     record_content = record.reader.read()
                     
-                    SEARCH_QUEUE.put(WarcRecord(parent_warc_gz_file=warc_gz_file_path, name=record_name, contents=record_content))
+                    SEARCH_QUEUE.put(
+                        WarcRecord(
+                            parent_warc_gz_file=warc_gz_file_path, 
+                            name=record_name, 
+                            contents=record_content
+                        )
+                    )
 
                     monitor_process_memory(records_read)
 
@@ -93,7 +99,7 @@ def read_warc_gz_records(warc_gz_file_path: str):
 def monitor_process_memory(records_read):
     if records_read % 1000 == 0:
         #print(f"{SEARCH_QUEUE.qsize()} records in search queue")
-        # log_info(f"Read {records_read} response records from the WARC in {os.path.basename(os.path.splitext(warc_gz_file_path)[0])}")
+        #log_info(f"Read {records_read} response records from the WARC in {os.path.basename(os.path.splitext(warc_gz_file_path)[0])}")
         process = psutil.Process()
         while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
             log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")

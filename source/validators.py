@@ -35,12 +35,6 @@ def validate_results_output_directory(results_output_directory: str):
         sys.exit()
 
 
-def validate_gz_files_exist(gz_directory_path: str, gz_files):
-    if not gz_files:
-        log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
-        sys.exit()
-
-
 def verify_regex_patterns_exist(regex_patterns_list: list):
     """Validates that at least one valid regex pattern exists in the provided list."""
     if not regex_patterns_list:
@@ -48,30 +42,40 @@ def verify_regex_patterns_exist(regex_patterns_list: list):
         sys.exit()
 
 
-def validate_and_get_max_search_processes(parsed_config_value) -> int:
+def validate_and_get_warc_gz_files_list(gz_directory_path: str):
+    """Validates that the directory containing the .gz archives exists and has .gz files present."""
+    gz_files_list = glob.glob(f"{gz_directory_path}/*.gz")
+    if not gz_files_list:
+        log_error(f"No .gz files were found at the root or any subdirectories of: {gz_directory_path}")
+        sys.exit()
+
+    return gz_files_list
+
+
+def validate_and_get_max_concurrent_search_processes(parsed_config_value) -> int:
     """
-    Validates the maximum number of search processes config.ini value. 
+    Validates the maximum number of concurrent search processes config.ini value. 
     If invalid, sets it to the maximum logical processors available.
     """
     total_logical_processors = os.cpu_count()
 
     try:
-        max_search_processes = (
+        max_concurrent_search_processes = (
             total_logical_processors if parsed_config_value == "none" 
             else int(parsed_config_value)
         )
 
-        if max_search_processes <= 0 or max_search_processes > total_logical_processors:
+        if max_concurrent_search_processes <= 0 or max_concurrent_search_processes > total_logical_processors:
             raise ValueError()
 
     except ValueError:
         log_warning(
             f"Invalid value for MAX_CONCURRENT_SEARCH_PROCESSES in config.ini: {parsed_config_value}. "
-            f"Setting number of search processes to maximum logical processors available on the PC."
+            f"Setting number of concurrent search processes to maximum logical processors available on the PC."
         )
-        max_search_processes = total_logical_processors
+        max_concurrent_search_processes = total_logical_processors
 
-    return max_search_processes
+    return max_concurrent_search_processes
 
 
 def validate_and_get_max_ram_usage(parsed_config_value) -> int:

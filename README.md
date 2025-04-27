@@ -30,7 +30,7 @@ WarcSearcher can be configured with the `config.ini` file at the root of the rep
 
 ### Required Variables
 
-* `WARC_GZ_ARCHIVES_DIRECTORY` - The directory containing the WARC.gz files. Subfolders will be searched recursively.
+* `WARC_GZ_ARCHIVES_DIRECTORY` - The directory containing the WARC.gz files.
 * `SEARCH_REGEX_DEFINITIONS_DIRECTORY` - The directory where the .txt files containing regular expressions to search with are located.
 * `RESULTS_OUTPUT_DIRECTORY` - The directory where the results are output to. The .txt and .zip results files for the execution will be stored in a timestamped folder within this directory.
 
