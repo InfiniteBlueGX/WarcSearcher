@@ -103,6 +103,7 @@ def monitor_process_memory(records_read: int):
         process = psutil.Process()
         while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
             log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
+            log_warning(f"If you are seeing this message often, consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.")
             time.sleep(10)
 
 
@@ -234,8 +235,8 @@ def monitor_and_log_search_queue_progress():
 
     while SEARCH_QUEUE.qsize() > 0:
         # Extra spaces are needed to properly overwrite the previous line in the console
-        print(f"\rRemaining items to search: {SEARCH_QUEUE.qsize()}            ", end='', flush=True)
+        print(f"\rRemaining records to search: {SEARCH_QUEUE.qsize()}            ", end='', flush=True)
         time.sleep(0.5)
         
-    print(f"\rRemaining items to search: 0            \n\n", end='', flush=True)
+    print(f"\rRemaining records to search: 0            \n\n", end='', flush=True)
     log_info("Finished Searching.")
