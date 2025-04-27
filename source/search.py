@@ -29,6 +29,7 @@ def start_search():
 
     # Set up the search worker processes, but reserve one logical processor for the main process to read the gz files.
     max_worker_processes: int = config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"]-1 if config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"] > 1 else 1
+    log_info(f"Starting {max_worker_processes} worker processes to search the WARC.gz files, plus 1 to read the WARC.gz records.")
 
     with ProcessPoolExecutor(max_workers = max_worker_processes) as executor:
         futures = [executor.submit(search_worker_process, 
@@ -44,8 +45,7 @@ def start_search():
         for _ in range(max_worker_processes):
             SEARCH_QUEUE.put(None)
 
-        log_info("Waiting on search worker processes to finish - This may take a while, please wait...")
-
+        monitor_and_log_search_queue_progress()
         wait(futures)
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
@@ -98,9 +98,8 @@ def read_warc_gz_records(warc_gz_file_path: str):
 
 
 def monitor_process_memory(records_read: int):
-    if records_read % 1000 == 0:
-        #print(f"{SEARCH_QUEUE.qsize()} records in search queue")
-        #log_info(f"Read {records_read} response records from the WARC in {get_file_base_name(warc_gz_file_path)}.gz")
+    if records_read % 500 == 0:
+        #print(f"Read {records_read} response records from the WARC")
         process = psutil.Process()
         while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
             log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
@@ -113,7 +112,6 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
     Worker process that awaits and retrieves records from the search queue, then
     searches for regex matches and writes any matches to the corresponding results output buffer.
     """
-    print(f"Starting search worker process #{os.getpid()}")
     result_files_write_buffers, zip_archives_dict = initialize_worker_process_resources(
         results_and_regexes_dict, 
         zip_files_with_matches
@@ -132,7 +130,6 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
                 result_files_write_buffers, 
                 zip_archives_dict
             )
-            print(f"Ending search worker process #{os.getpid()}")
             break
         
         search_warc_record(
@@ -229,3 +226,16 @@ def finalize_worker_process_resources(results_and_regexes_dict: dict, results_fi
     
     for zip_file in zip_archives_dict:
         zip_archives_dict[zip_file].close()
+
+
+def monitor_and_log_search_queue_progress():
+    """Monitors the search queue after all records are read and logs its progress."""
+    log_info("All records read from the WARC.gz files. Waiting on search worker processes to finish...")
+
+    while SEARCH_QUEUE.qsize() > 0:
+        # Extra spaces are needed to properly overwrite the previous line in the console
+        print(f"\rRemaining items to search: {SEARCH_QUEUE.qsize()}            ", end='', flush=True)
+        time.sleep(0.5)
+        
+    print(f"\rRemaining items to search: 0            \n\n", end='', flush=True)
+    log_info("Finished Searching.")
