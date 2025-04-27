@@ -63,7 +63,7 @@ def read_warc_gz_files(gz_files: list):
 
 
 def read_warc_gz_records(warc_gz_file_path: str):
-    log_info(f"Reading records from {get_file_base_name(warc_gz_file_path)}.gz")
+    log_info(f"Reading records from {get_base_file_name(warc_gz_file_path)}.gz")
 
     # FastWARC optimization by using a GZipStream: https://resiliparse.chatnoir.eu/en/stable/man/fastwarc.html#iterating-warc-files
     with FileStream(warc_gz_file_path, 'rb') as file_stream:
@@ -76,7 +76,7 @@ def read_warc_gz_records(warc_gz_file_path: str):
                 )
                 
                 if not any(records):
-                    log_warning(f"No WARC records found in {get_file_base_name(warc_gz_file_path)}.gz")
+                    log_warning(f"No WARC records found in {get_base_file_name(warc_gz_file_path)}.gz")
                     return
 
                 for records_read, record in enumerate(records, start=1):
@@ -94,7 +94,7 @@ def read_warc_gz_records(warc_gz_file_path: str):
                     monitor_process_memory(records_read)
 
             except Exception as e:
-                log_error(f"Error ocurred when reading {get_file_base_name(warc_gz_file_path)}: \n{e}")
+                log_error(f"Error ocurred when reading {get_base_file_name(warc_gz_file_path)}: \n{e}")
 
 
 def monitor_process_memory(records_read: int):
@@ -103,7 +103,7 @@ def monitor_process_memory(records_read: int):
         process = psutil.Process()
         while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
             log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
-            log_warning(f"If you are seeing this message often, consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.")
+            log_warning(f"If you see this message often, consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.")
             time.sleep(10)
 
 
@@ -124,7 +124,7 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
         warc_record: WarcRecord = search_queue.get()
         
         if warc_record is None:
-            # If the record obtained from the search queue is None, the main process has signaled to stop searching.
+            # If the record obtained from the search queue is None, the main process has signaled the worker processes to stop.
             finalize_worker_process_resources(
                 results_and_regexes_dict, 
                 results_files_locks_dict, 
@@ -144,7 +144,7 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
 
 
 def initialize_worker_process_resources(results_and_regexes_dict: dict, zip_files_with_matches: bool):
-    """Initialize resources needed for the search process."""
+    """Initialize resources required by the search worker process."""
 
     result_files_write_buffers = {
         results_file_path: StringIO() 
@@ -160,7 +160,7 @@ def initialize_worker_process_resources(results_and_regexes_dict: dict, zip_file
         for results_file_path in results_and_regexes_dict.keys():
             zip_archive_path = os.path.join(
                 zip_temp_dir_for_process, 
-                f"{get_file_base_name(results_file_path)}.zip"
+                f"{get_base_file_name(results_file_path)}.zip"
             )
             zip_archives_dict[zip_archive_path] = zipfile.ZipFile(
                 zip_archive_path, 'a', zipfile.ZIP_DEFLATED
@@ -200,7 +200,7 @@ def search_warc_record(warc_record: WarcRecord, results_and_regexes_dict: dict, 
                 zip_process_dir = os.path.dirname(next(iter(zip_archives_dict.keys())))
                 zip_archive_path = os.path.join(
                     zip_process_dir, 
-                    f"{get_file_base_name(results_file_path)}.zip"
+                    f"{get_base_file_name(results_file_path)}.zip"
                 )
 
                 try:

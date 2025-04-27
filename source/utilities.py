@@ -10,7 +10,7 @@ def find_regex_matches(input_string: str, regex_pattern: re.Pattern) -> list:
     return [match.group() for match in regex_pattern.finditer(input_string)]
 
 
-def get_file_base_name(file_path: str) -> str:
+def get_base_file_name(file_path: str) -> str:
     """Returns the base name of a file without its extension."""
     return os.path.splitext(os.path.basename(file_path))[0]
 

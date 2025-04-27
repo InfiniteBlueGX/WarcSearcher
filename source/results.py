@@ -3,7 +3,7 @@ import datetime
 from multiprocessing.managers import SyncManager
 import shutil
 
-from utilities import get_file_base_name, merge_zip_archives
+from utilities import get_base_file_name, merge_zip_archives
 import config
 from logger import *
 
@@ -29,7 +29,7 @@ def initialize_results_output_subdirectory():
 
 def get_results_file_path(definition_file_path: str) -> str:
     """Returns a file path for the results text file with a name similar to that of the definition file's name."""
-    results_file_name = f"{get_file_base_name(definition_file_path)}_results.txt"
+    results_file_name = f"{get_base_file_name(definition_file_path)}_results.txt"
     return os.path.join(results_output_subdirectory, results_file_name)
 
 
@@ -87,7 +87,7 @@ def log_results_output_path():
     else:
         # The results output subdirectory was not created likely due to an error. 
         # Log the path to the log file in the current working directory instead.
-        log_info(f"No results folder was created. Log file output to: {os.getcwd()}\\log")
+        log_info(f"No results folder was created due to an error. Log file output to: {os.getcwd()}")
 
 
 def finalize_results_zip_archives(results_file_paths):
@@ -97,7 +97,7 @@ def finalize_results_zip_archives(results_file_paths):
         futures = {executor.submit(merge_zip_archives, 
                                        tempdir,
                                        results_output_subdirectory, 
-                                       get_file_base_name(results_path)): results_path for results_path in results_file_paths}
+                                       get_base_file_name(results_path)): results_path for results_path in results_file_paths}
         for future in as_completed(futures):
             future.result()
 
