@@ -22,7 +22,7 @@ def start_search():
     manager = Manager()
 
     write_results_file_headers(results_and_regexes_dict)
-    result_files_write_locks_dict = get_result_files_write_locks_dict(manager, results_and_regexes_dict.keys())
+    result_files_write_locks_dict = create_result_files_write_locks_dict(manager, results_and_regexes_dict.keys())
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
@@ -38,13 +38,13 @@ def start_search():
                                    config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_worker_processes)]
 
         # Main process execution: read the gz files and put records into the search queue
-        open_warc_gz_files(gz_files_list)
+        read_warc_gz_files(gz_files_list)
 
         # Once finished reading, put a None object in the queue for each worker process to signal them to stop
         for _ in range(max_worker_processes):
             SEARCH_QUEUE.put(None)
 
-        log_info("Waiting on search processes to finish - This may take a while, please wait...")
+        log_info("Waiting on search worker processes to finish - This may take a while, please wait...")
 
         wait(futures)
 
@@ -52,7 +52,7 @@ def start_search():
         finalize_results_zip_archives(results_and_regexes_dict.keys())
 
 
-def open_warc_gz_files(gz_files: list):
+def read_warc_gz_files(gz_files: list):
     # Set up 4 threads to read the gz files concurrently - one thread per gz file. 
     # Each thread will open a gz file and put records into the search queue.
     with ThreadPoolExecutor(max_workers = 4) as executor:

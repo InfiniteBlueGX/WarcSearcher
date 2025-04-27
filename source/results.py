@@ -33,7 +33,7 @@ def get_results_file_path(definition_file_path: str) -> str:
     return os.path.join(results_output_subdirectory, results_file_name)
 
 
-def get_result_files_write_locks_dict(manager: SyncManager, results_file_paths) -> dict:
+def create_result_files_write_locks_dict(manager: SyncManager, results_file_paths) -> dict:
     """Create write locks for the specified paths to the results files."""
     write_locks_dict = manager.dict()
     for txt_path in results_file_paths:
