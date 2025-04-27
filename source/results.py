@@ -97,7 +97,7 @@ def finalize_results_zip_archives(results_file_paths):
         futures = {executor.submit(merge_zip_archives, 
                                        tempdir,
                                        results_output_subdirectory, 
-                                       os.path.basename(os.path.splitext(results_path)[0])): results_path for results_path in results_file_paths}
+                                       get_file_base_name(results_path)): results_path for results_path in results_file_paths}
         for future in as_completed(futures):
             future.result()
 

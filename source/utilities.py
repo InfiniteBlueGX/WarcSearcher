@@ -16,7 +16,7 @@ def get_file_base_name(file_path: str) -> str:
 
 
 def is_file_binary(file_data) -> bool:
-    """Returns True if the file is binary data, False if it is text."""
+    """Returns True if the file is binary data based on the first 1024 characters."""
     text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
     first_1024_chars = file_data[:1024]
     return bool(first_1024_chars.translate(None, text_chars))
@@ -47,7 +47,7 @@ def sanitize_file_name(file_name: str) -> str:
     return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))
 
 
-def add_file_to_zip_archive(file_name, file_data, zip_archive):
+def add_file_to_zip_archive(file_name, file_data, zip_archive: zipfile.ZipFile):
     """Adds a file to an existing zip archive after ensuring a file with the same name is not already present in the archive."""
     sanitized_file_name = sanitize_file_name(file_name)
     if sanitized_file_name not in zip_archive.namelist():

@@ -3,6 +3,7 @@ from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
 from io import StringIO
 from multiprocessing import Manager
+from typing import Any
 
 from config import *
 from definitions import create_result_files_associated_with_regexes_dict
@@ -96,15 +97,14 @@ def read_warc_gz_records(warc_gz_file_path: str):
                 log_error(f"Error ocurred when reading {get_file_base_name(warc_gz_file_path)}: \n{e}")
 
 
-def monitor_process_memory(records_read):
+def monitor_process_memory(records_read: int):
     if records_read % 1000 == 0:
         #print(f"{SEARCH_QUEUE.qsize()} records in search queue")
-        #log_info(f"Read {records_read} response records from the WARC in {os.path.basename(os.path.splitext(warc_gz_file_path)[0])}")
+        #log_info(f"Read {records_read} response records from the WARC in {get_file_base_name(warc_gz_file_path)}.gz")
         process = psutil.Process()
         while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
             log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
             time.sleep(10)
-
 
 
 def search_worker_process(search_queue, results_and_regexes_dict: dict, 
@@ -113,8 +113,8 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
     Worker process that awaits and retrieves records from the search queue, then
     searches for regex matches and writes any matches to the corresponding results output buffer.
     """
-    print(f"Starting search process #{os.getpid()}")
-    result_files_write_buffers, zip_archives_dict = initialize_process_resources(
+    print(f"Starting search worker process #{os.getpid()}")
+    result_files_write_buffers, zip_archives_dict = initialize_worker_process_resources(
         results_and_regexes_dict, 
         zip_files_with_matches
     )
@@ -122,21 +122,21 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
     # Primary loop to await and process records from the search queue
     while True:
         # Get a record from the search queue. This will block execution until a record is available.
-        record_data: WarcRecord = search_queue.get()
+        warc_record: WarcRecord = search_queue.get()
         
-        if record_data is None:
+        if warc_record is None:
             # If the record obtained from the search queue is None, the main process has signaled to stop searching.
-            finalize_process_resources(
+            finalize_worker_process_resources(
                 results_and_regexes_dict, 
                 results_files_locks_dict, 
                 result_files_write_buffers, 
                 zip_archives_dict
             )
-            print(f"Ending search process #{os.getpid()}")
+            print(f"Ending search worker process #{os.getpid()}")
             break
         
         search_warc_record(
-            record_data, 
+            warc_record, 
             results_and_regexes_dict, 
             result_files_write_buffers, 
             zip_archives_dict, 
@@ -145,7 +145,7 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
 
 
 
-def initialize_process_resources(results_and_regexes_dict, zip_files_with_matches):
+def initialize_worker_process_resources(results_and_regexes_dict: dict, zip_files_with_matches: bool):
     """Initialize resources needed for the search process."""
 
     result_files_write_buffers = {
@@ -156,13 +156,13 @@ def initialize_process_resources(results_and_regexes_dict, zip_files_with_matche
     zip_archives_dict = {}
     if zip_files_with_matches:
         results_dir = os.path.dirname(next(iter(results_and_regexes_dict.keys())))
-        zip_process_dir = os.path.join(f"{results_dir}/temp", str(os.getpid()))
-        os.makedirs(zip_process_dir)
+        zip_temp_dir_for_process = os.path.join(f"{results_dir}/temp", str(os.getpid()))
+        os.makedirs(zip_temp_dir_for_process)
         
         for results_file_path in results_and_regexes_dict.keys():
             zip_archive_path = os.path.join(
-                zip_process_dir, 
-                f"{os.path.basename(os.path.splitext(results_file_path)[0])}.zip"
+                zip_temp_dir_for_process, 
+                f"{get_file_base_name(results_file_path)}.zip"
             )
             zip_archives_dict[zip_archive_path] = zipfile.ZipFile(
                 zip_archive_path, 'a', zipfile.ZIP_DEFLATED
@@ -172,53 +172,57 @@ def initialize_process_resources(results_and_regexes_dict, zip_files_with_matche
 
 
 
-def search_warc_record(record_data, results_and_regexes_dict, result_files_write_buffers, 
-                  zip_archives_dict, zip_files_with_matches):
+def search_warc_record(warc_record: WarcRecord, results_and_regexes_dict: dict, result_files_write_buffers: dict[Any, StringIO], 
+                  zip_archives_dict: dict[str, zipfile.ZipFile], zip_files_with_matches: bool):
     """Processes a single record, searching for regex matches. If matches are found, they are written to the corresponding result file."""
     for results_file_path, regex in results_and_regexes_dict.items():
-        # Find matches in the filename
-        matches_name = find_regex_matches(record_data.name, regex)
-        
-        # Find matches in the contents
-        matches_contents = []
-        if not config.settings["SEARCH_BINARY_FILES"] and is_file_binary(record_data.contents):
+
+        matches_in_name = find_regex_matches(warc_record.name, regex)
+        matches_in_contents = []
+
+        if not config.settings["SEARCH_BINARY_FILES"] and is_file_binary(warc_record.contents):
             # Skip binary files if configured to do so
-            matches_contents = ''
+            matches_in_contents = ''
         else:
-            matches_contents = find_regex_matches(
-                record_data.contents.decode('utf-8', 'ignore'), 
+            matches_in_contents = find_regex_matches(
+                warc_record.contents.decode('utf-8', 'ignore'), 
                 regex
             )
         
-        # Handle matches if found
-        if matches_name or matches_contents:
+        if matches_in_name or matches_in_contents:
             write_matched_file_to_output_buffer(
                 result_files_write_buffers[results_file_path], 
-                matches_name, 
-                matches_contents, 
-                record_data.parent_warc_gz_file, 
-                record_data.name
+                matches_in_name, 
+                matches_in_contents, 
+                warc_record.parent_warc_gz_file, 
+                warc_record.name
             )
             
             if zip_files_with_matches:
                 zip_process_dir = os.path.dirname(next(iter(zip_archives_dict.keys())))
                 zip_archive_path = os.path.join(
                     zip_process_dir, 
-                    f"{os.path.basename(os.path.splitext(results_file_path)[0])}.zip"
-                )
-                add_file_to_zip_archive(
-                    record_data.name, 
-                    record_data.contents, 
-                    zip_archives_dict[zip_archive_path]
+                    f"{get_file_base_name(results_file_path)}.zip"
                 )
 
+                try:
+                    add_file_to_zip_archive(
+                        warc_record.name, 
+                        warc_record.contents, 
+                        zip_archives_dict[zip_archive_path]
+                    )
+                except Exception as e:
+                    log_error(f"Error adding file to zip archive {zip_archive_path}: {e}")
+                    continue
 
 
-def finalize_process_resources(results_and_regexes_dict, results_files_locks_dict, 
-                    result_files_write_buffers, zip_archives_dict):
+
+def finalize_worker_process_resources(results_and_regexes_dict: dict, results_files_locks_dict: dict, 
+                    result_files_write_buffers: dict[Any, StringIO], zip_archives_dict: dict[str, zipfile.ZipFile]):
     """Finalize the search worker process by writing output buffers to result files and closing zip archives."""
     for results_file_path in results_and_regexes_dict.keys():
         buffer_contents = result_files_write_buffers[results_file_path].getvalue()
+
         with results_files_locks_dict[results_file_path]:
             with open(results_file_path, "a", encoding='utf-8') as output_file:
                 output_file.write(buffer_contents)
