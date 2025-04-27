@@ -19,7 +19,7 @@ def setup():
 
 def on_exit():
     """
-    Function to be called on program exit. Logs the results path, the execution time, and the total errors/warnings. 
+    Function to be called on program exit. Logs the results path, the execution time, and the total errors/warnings.
     Logging is then closed and the log file is moved to the results directory if one exists.
     """
     log_results_output_path()

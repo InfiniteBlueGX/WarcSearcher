@@ -33,7 +33,7 @@ def start_search():
                                    result_files_write_locks_dict,
                                    config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_processes)]
 
-        compile_and_read_warc_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
+        find_and_open_warc_gz_files(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
 
         # Put a None object in the queue for each process to signal them to stop searching
         for _ in range(max_processes):
@@ -49,7 +49,7 @@ def start_search():
 
 
 
-def compile_and_read_warc_gz_files(gz_directory_path: str):
+def find_and_open_warc_gz_files(gz_directory_path: str):
     gz_files = glob.glob(f"{gz_directory_path}/**/*.gz", recursive=True)
 
     validate_gz_files_exist(gz_directory_path, gz_files)
@@ -65,8 +65,8 @@ def compile_and_read_warc_gz_files(gz_directory_path: str):
 
 
 def read_warc_gz_records(warc_gz_file_path: str):
-    gz_file_stream = GZipStream(FileStream(warc_gz_file_path, 'rb'))
     log_info(f"Reading records from {warc_gz_file_path}")
+    gz_file_stream = GZipStream(FileStream(warc_gz_file_path, 'rb'))
 
     try:
         records = ArchiveIterator(gz_file_stream, strict_mode=False)
@@ -78,8 +78,9 @@ def read_warc_gz_records(warc_gz_file_path: str):
         for record in records:
             if record.headers['WARC-Type'] == 'response':
                 records_read += 1
-                record_content = record.reader.read()
                 record_name = record.headers['WARC-Target-URI']
+                record_content = record.reader.read()
+                
                 SEARCH_QUEUE.put(WarcRecord(parent_warc_gz_file=warc_gz_file_path, name=record_name, contents=record_content))
 
                 if records_read % 1000 == 0:
@@ -97,7 +98,8 @@ def read_warc_gz_records(warc_gz_file_path: str):
 def search_worker_process(search_queue, results_and_regexes_dict: dict, 
                          results_files_locks_dict: dict, zip_files_with_matches: bool):
     """
-    Worker process that continuously searches for regex matches in records from the search queue.
+    Worker process that awaits and retrieves records from the search queue, then
+    searches for regex matches and writes any matches to the corresponding results output buffer.
     """
     print(f"Starting search process #{os.getpid()}")
     result_files_write_buffers, zip_archives_dict = initialize_process_resources(
