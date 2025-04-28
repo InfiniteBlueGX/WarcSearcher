@@ -82,7 +82,7 @@ def read_warc_gz_records(warc_gz_file_path: str):
                 )
                 
                 if not any(records):
-                    log_warning(f"No WARC records found in {get_base_file_name(warc_gz_file_path)}.gz")
+                    log_warning(f"No WARC records found in {os.path.basename(warc_gz_file_path)}")
                     return
 
                 for records_read, record in enumerate(records, start=1):
@@ -100,7 +100,7 @@ def read_warc_gz_records(warc_gz_file_path: str):
                     monitor_process_memory(records_read)
 
             except Exception as e:
-                log_error(f"Error ocurred when reading {get_base_file_name(warc_gz_file_path)}: \n{e}")
+                log_error(f"Error ocurred when reading {os.path.basename(warc_gz_file_path)}: \n{e}")
 
 
 def monitor_process_memory(records_read: int):
@@ -116,8 +116,8 @@ def monitor_process_memory(records_read: int):
 def search_worker_process(search_queue, results_and_regexes_dict: dict, 
                          results_files_locks_dict: dict, zip_files_with_matches: bool):
     """
-    Worker process that awaits and retrieves records from the search queue, then
-    searches for regex matches and writes any matches to the corresponding results output buffer.
+    Worker process that awaits and retrieves records from the search queue. 
+    It then searches the record name and contents against the regex definitions and writes any matches to the corresponding results output buffer.
     """
     result_files_write_buffers, zip_archives_dict = initialize_worker_process_resources(
         results_and_regexes_dict, 
