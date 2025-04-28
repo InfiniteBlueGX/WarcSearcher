@@ -47,7 +47,7 @@ def sanitize_file_name(file_name: str) -> str:
     return web_prefixes_removed.translate(str.maketrans('','','\\/*?:"<>|'))
 
 
-def add_file_to_zip_archive(file_name, file_data, zip_archive: zipfile.ZipFile):
+def add_file_to_zip_archive(file_name: str, file_data, zip_archive: zipfile.ZipFile):
     """Adds a file to an existing zip archive after ensuring a file with the same name is not already present in the archive."""
     sanitized_file_name = sanitize_file_name(file_name)
     if sanitized_file_name not in zip_archive.namelist():

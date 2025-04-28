@@ -28,6 +28,7 @@ def start_search():
     SEARCH_QUEUE = manager.Queue()
 
     initiate_search_processes(gz_files_list, results_and_regexes_dict, result_files_write_locks_dict)
+    log_info("Finished Searching.")
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
         finalize_results_zip_archives(results_and_regexes_dict.keys())
@@ -47,7 +48,7 @@ def initiate_search_processes(gz_files_list: list, results_and_regexes_dict: dic
         # Main process execution: read the gz files and put records into the search queue.
         initiate_warc_gz_read_threads(gz_files_list)
         signal_worker_processes_to_stop(max_worker_processes)
-        monitor_and_log_search_queue_progress()
+        monitor_and_print_search_queue_progress()
 
         wait(futures)
 
@@ -179,17 +180,14 @@ def search_warc_record(warc_record: WarcRecord, results_and_regexes_dict: dict, 
     """Processes a single record, searching for regex matches. If matches are found, they are written to the corresponding result file."""
     for results_file_path, regex in results_and_regexes_dict.items():
 
-        warc_record_name: str = warc_record.name
-        warc_record_contents: bytes = warc_record.contents
-
-        matches_in_name = find_regex_matches(warc_record_name, regex)
+        matches_in_name = find_regex_matches(warc_record.name, regex)
         matches_in_contents = []
         
-        if not config.settings["SEARCH_BINARY_FILES"] and is_file_binary(warc_record_contents):
+        if not config.settings["SEARCH_BINARY_FILES"] and is_file_binary(warc_record.contents):
             # Skip binary files if configured to do so
             matches_in_contents = ''
         else:
-            matches_in_contents = find_regex_matches(warc_record_contents.decode('utf-8', 'ignore'), regex)
+            matches_in_contents = find_regex_matches(warc_record.contents.decode('utf-8', 'ignore'), regex)
         
         if matches_in_name or matches_in_contents:
             write_record_to_output_buffer(
@@ -197,7 +195,7 @@ def search_warc_record(warc_record: WarcRecord, results_and_regexes_dict: dict, 
                 matches_in_name, 
                 matches_in_contents, 
                 warc_record.parent_warc_gz_file, 
-                warc_record_name
+                warc_record.name
             )
             
             if zip_files_with_matches:
@@ -205,8 +203,8 @@ def search_warc_record(warc_record: WarcRecord, results_and_regexes_dict: dict, 
 
                 try:
                     add_file_to_zip_archive(
-                        warc_record_name, 
-                        warc_record_contents, 
+                        warc_record.name, 
+                        warc_record.contents, 
                         zip_archives_dict[zip_archive_path]
                     )
                 except Exception as e:
@@ -234,8 +232,8 @@ def signal_worker_processes_to_stop(max_worker_processes: int):
         SEARCH_QUEUE.put(None)
 
 
-def monitor_and_log_search_queue_progress():
-    """Monitors the search queue after all records are read and logs its progress."""
+def monitor_and_print_search_queue_progress():
+    """Monitors the search queue after all records are read and prints the remaining items in the queue to be searched."""
     log_info("All records read from the WARC.gz files. Waiting on search worker processes to finish...")
 
     while SEARCH_QUEUE.qsize() > 0:
@@ -244,4 +242,3 @@ def monitor_and_log_search_queue_progress():
         time.sleep(0.5)
         
     print(f"\rRemaining records to search: 0            \n\n", end='', flush=True)
-    log_info("Finished Searching.")

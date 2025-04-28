@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 from multiprocessing.managers import SyncManager
+import re
 import shutil
 
 from utilities import get_base_file_name, merge_zip_archives
@@ -41,9 +42,9 @@ def create_result_files_write_locks_dict(manager: SyncManager, results_file_path
     return write_locks_dict
 
 
-def write_result_files_headers(definitions_dict: dict):
+def write_result_files_headers(results_and_regexes_dict: dict[str, re.Pattern]):
     """Initialize the results text files by writing headers."""
-    for results_file_path, regex in definitions_dict.items():
+    for results_file_path, regex in results_and_regexes_dict.items():
         with open(results_file_path, "a", encoding='utf-8') as results_file:
             timestamp = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
             results_file.write(f'[{os.path.basename(results_file_path)}]\n')
@@ -85,16 +86,14 @@ def log_results_output_path():
     if results_output_subdirectory != '':
         log_info(f"Results output to: {results_output_subdirectory}")
     else:
-        # The results output subdirectory was not created likely due to an error. 
-        # Log the path to the log file in the current working directory instead.
         log_info(f"No results folder was created due to an error. Log file output to: {os.getcwd()}")
 
 
 def get_results_zip_archive_file_path(zip_archives_dict: dict, results_file_path: str) -> str:
     """Gets a zip file path for the given results file path."""
-    zip_process_dir = os.path.dirname(next(iter(zip_archives_dict.keys())))
+    temp_process_subdir_for_zip = os.path.dirname(next(iter(zip_archives_dict.keys())))
     zip_archive_path = os.path.join(
-                    zip_process_dir, 
+                    temp_process_subdir_for_zip, 
                     f"{get_base_file_name(results_file_path)}.zip"
                 )
     

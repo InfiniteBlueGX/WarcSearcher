@@ -31,15 +31,7 @@ def compile_regex_pattern_from_definition_file(definition_file_path: str) -> tup
 
 
 def create_result_files_associated_with_regexes_dict() -> dict[str, re.Pattern]:
-    """
-    Creates a dictionary that maps result text file paths to their corresponding compiled regex patterns.
-    
-    This function reads definition files, compiles regex patterns from them, and maps
-    each successfully compiling regex pattern to its corresponding result text file path.
-    
-    Returns:
-        A dictionary where each key is an output file path and each value is a compiled regex pattern.
-    """
+    """Creates a dictionary where each key is an output file path and each value is a compiled regex pattern."""
     definition_files = get_definition_txt_files_list()
     results_file_regex_pattern_dict = {}
     

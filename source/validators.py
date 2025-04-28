@@ -42,7 +42,7 @@ def verify_regex_patterns_exist(regex_patterns_list: list):
         sys.exit()
 
 
-def validate_and_get_warc_gz_files_list(gz_directory_path: str):
+def validate_and_get_warc_gz_files_list(gz_directory_path: str) -> list[str]:
     """Validates that the directory containing the .gz archives exists and has .gz files present."""
     gz_files_list = glob.glob(f"{gz_directory_path}/*.gz")
     if not gz_files_list:
@@ -52,7 +52,7 @@ def validate_and_get_warc_gz_files_list(gz_directory_path: str):
     return gz_files_list
 
 
-def validate_and_get_max_concurrent_search_processes(parsed_config_value) -> int:
+def validate_and_get_max_concurrent_search_processes(parsed_config_value: str) -> int:
     """
     Validates the maximum number of concurrent search processes config.ini value. 
     If invalid, sets it to the maximum logical processors available.
@@ -78,7 +78,7 @@ def validate_and_get_max_concurrent_search_processes(parsed_config_value) -> int
     return max_concurrent_search_processes
 
 
-def validate_and_get_max_ram_usage(parsed_config_value) -> int:
+def validate_and_get_max_ram_usage(parsed_config_value: str) -> int:
     """
     Validates the maximum RAM usage config.ini value for the program execution in bytes.
     If invalid, sets it to the total amount of RAM available on the machine.
