@@ -41,7 +41,7 @@ def create_result_files_write_locks_dict(manager: SyncManager, results_file_path
     return write_locks_dict
 
 
-def write_results_file_headers(definitions_dict: dict):
+def write_result_files_headers(definitions_dict: dict):
     """Initialize the results text files by writing headers."""
     for results_file_path, regex in definitions_dict.items():
         with open(results_file_path, "a", encoding='utf-8') as results_file:
@@ -52,11 +52,11 @@ def write_results_file_headers(definitions_dict: dict):
             results_file.write('___________________________________________________________________\n\n')
 
 
-def write_matched_file_to_output_buffer(output_buffer, matches_list_name, matches_list_contents, parent_warc_gz_file, containing_file):
-    """Writes the matched file information to the output buffer."""
+def write_record_to_output_buffer(output_buffer, matches_list_name, matches_list_contents, parent_warc_gz_file, file_name):
+    """Writes the matched record information to the output buffer."""
 
     output_buffer.write(f'[Archive: {parent_warc_gz_file}]\n')
-    output_buffer.write(f'[File: {containing_file}]\n\n')
+    output_buffer.write(f'[File: {file_name}]\n\n')
 
     write_matches_to_output_buffer(output_buffer, matches_list_name, 'file name')
     write_matches_to_output_buffer(output_buffer, matches_list_contents, 'file contents')
@@ -88,6 +88,17 @@ def log_results_output_path():
         # The results output subdirectory was not created likely due to an error. 
         # Log the path to the log file in the current working directory instead.
         log_info(f"No results folder was created due to an error. Log file output to: {os.getcwd()}")
+
+
+def get_results_zip_archive_file_path(zip_archives_dict: dict, results_file_path: str) -> str:
+    """Gets a zip file path for the given results file path."""
+    zip_process_dir = os.path.dirname(next(iter(zip_archives_dict.keys())))
+    zip_archive_path = os.path.join(
+                    zip_process_dir, 
+                    f"{get_base_file_name(results_file_path)}.zip"
+                )
+    
+    return zip_archive_path
 
 
 def finalize_results_zip_archives(results_file_paths):

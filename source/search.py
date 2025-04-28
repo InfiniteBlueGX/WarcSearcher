@@ -21,14 +21,20 @@ def start_search():
     results_and_regexes_dict = create_result_files_associated_with_regexes_dict()
     manager = Manager()
 
-    write_results_file_headers(results_and_regexes_dict)
+    write_result_files_headers(results_and_regexes_dict)
     result_files_write_locks_dict = create_result_files_write_locks_dict(manager, results_and_regexes_dict.keys())
 
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
 
-    # Set up the search worker processes, but reserve one logical processor for the main process to read the gz files.
-    max_worker_processes: int = config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"]-1 if config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"] > 1 else 1
+    initiate_search_processes(gz_files_list, results_and_regexes_dict, result_files_write_locks_dict)
+
+    if config.settings["ZIP_FILES_WITH_MATCHES"]:
+        finalize_results_zip_archives(results_and_regexes_dict.keys())
+
+
+def initiate_search_processes(gz_files_list: list, results_and_regexes_dict: dict, result_files_write_locks_dict: dict):
+    max_worker_processes = calculate_max_workers()
     log_info(f"Starting {max_worker_processes} worker processes to search the WARC.gz files, plus 1 to read the WARC.gz records.")
 
     with ProcessPoolExecutor(max_workers = max_worker_processes) as executor:
@@ -38,23 +44,21 @@ def start_search():
                                    result_files_write_locks_dict,
                                    config.settings["ZIP_FILES_WITH_MATCHES"]) for _ in range(max_worker_processes)]
 
-        # Main process execution: read the gz files and put records into the search queue
-        read_warc_gz_files(gz_files_list)
-
-        # Once finished reading, put a None object in the queue for each worker process to signal them to stop
-        for _ in range(max_worker_processes):
-            SEARCH_QUEUE.put(None)
-
+        # Main process execution: read the gz files and put records into the search queue.
+        initiate_warc_gz_read_threads(gz_files_list)
+        signal_worker_processes_to_stop(max_worker_processes)
         monitor_and_log_search_queue_progress()
+
         wait(futures)
 
-    if config.settings["ZIP_FILES_WITH_MATCHES"]:
-        finalize_results_zip_archives(results_and_regexes_dict.keys())
+
+def calculate_max_workers() -> int:
+    """Calculates the maximum number of worker processes to be used for searching the WARC.gz files."""
+    return config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"]-1 if config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"] > 1 else 1
 
 
-def read_warc_gz_files(gz_files: list):
-    # Set up 4 threads to read the gz files concurrently - one thread per gz file. 
-    # Each thread will open a gz file and put records into the search queue.
+def initiate_warc_gz_read_threads(gz_files: list):
+    """Sets up 4 threads to read the gz files simultaneously - one thread per gz file."""
     with ThreadPoolExecutor(max_workers = 4) as executor:
         tasks = {executor.submit(read_warc_gz_records, gz_file_path) for gz_file_path in gz_files}
 
@@ -65,7 +69,8 @@ def read_warc_gz_files(gz_files: list):
 def read_warc_gz_records(warc_gz_file_path: str):
     log_info(f"Reading records from {get_base_file_name(warc_gz_file_path)}.gz")
 
-    # FastWARC optimization by using a GZipStream: https://resiliparse.chatnoir.eu/en/stable/man/fastwarc.html#iterating-warc-files
+    # FastWARC optimization by using a FileStream + GZipStream like this: 
+    # https://resiliparse.chatnoir.eu/en/stable/man/fastwarc.html#iterating-warc-files
     with FileStream(warc_gz_file_path, 'rb') as file_stream:
         with GZipStream(file_stream) as gz_file_stream:
             try:
@@ -142,7 +147,6 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
         )
 
 
-
 def initialize_worker_process_resources(results_and_regexes_dict: dict, zip_files_with_matches: bool):
     """Initialize resources required by the search worker process."""
 
@@ -158,12 +162,12 @@ def initialize_worker_process_resources(results_and_regexes_dict: dict, zip_file
         os.makedirs(zip_temp_dir_for_process)
         
         for results_file_path in results_and_regexes_dict.keys():
-            zip_archive_path = os.path.join(
+            zip_results_archive_path = os.path.join(
                 zip_temp_dir_for_process, 
                 f"{get_base_file_name(results_file_path)}.zip"
             )
-            zip_archives_dict[zip_archive_path] = zipfile.ZipFile(
-                zip_archive_path, 'a', zipfile.ZIP_DEFLATED
+            zip_archives_dict[zip_results_archive_path] = zipfile.ZipFile(
+                zip_results_archive_path, 'a', zipfile.ZIP_DEFLATED
             )
     
     return result_files_write_buffers, zip_archives_dict
@@ -175,44 +179,39 @@ def search_warc_record(warc_record: WarcRecord, results_and_regexes_dict: dict, 
     """Processes a single record, searching for regex matches. If matches are found, they are written to the corresponding result file."""
     for results_file_path, regex in results_and_regexes_dict.items():
 
-        matches_in_name = find_regex_matches(warc_record.name, regex)
-        matches_in_contents = []
+        warc_record_name: str = warc_record.name
+        warc_record_contents: bytes = warc_record.contents
 
-        if not config.settings["SEARCH_BINARY_FILES"] and is_file_binary(warc_record.contents):
+        matches_in_name = find_regex_matches(warc_record_name, regex)
+        matches_in_contents = []
+        
+        if not config.settings["SEARCH_BINARY_FILES"] and is_file_binary(warc_record_contents):
             # Skip binary files if configured to do so
             matches_in_contents = ''
         else:
-            matches_in_contents = find_regex_matches(
-                warc_record.contents.decode('utf-8', 'ignore'), 
-                regex
-            )
+            matches_in_contents = find_regex_matches(warc_record_contents.decode('utf-8', 'ignore'), regex)
         
         if matches_in_name or matches_in_contents:
-            write_matched_file_to_output_buffer(
+            write_record_to_output_buffer(
                 result_files_write_buffers[results_file_path], 
                 matches_in_name, 
                 matches_in_contents, 
                 warc_record.parent_warc_gz_file, 
-                warc_record.name
+                warc_record_name
             )
             
             if zip_files_with_matches:
-                zip_process_dir = os.path.dirname(next(iter(zip_archives_dict.keys())))
-                zip_archive_path = os.path.join(
-                    zip_process_dir, 
-                    f"{get_base_file_name(results_file_path)}.zip"
-                )
+                zip_archive_path = get_results_zip_archive_file_path(zip_archives_dict, results_file_path)
 
                 try:
                     add_file_to_zip_archive(
-                        warc_record.name, 
-                        warc_record.contents, 
+                        warc_record_name, 
+                        warc_record_contents, 
                         zip_archives_dict[zip_archive_path]
                     )
                 except Exception as e:
                     log_error(f"Error adding file to zip archive {zip_archive_path}: {e}")
                     continue
-
 
 
 def finalize_worker_process_resources(results_and_regexes_dict: dict, results_files_locks_dict: dict, 
@@ -227,6 +226,12 @@ def finalize_worker_process_resources(results_and_regexes_dict: dict, results_fi
     
     for zip_file in zip_archives_dict:
         zip_archives_dict[zip_file].close()
+
+
+def signal_worker_processes_to_stop(max_worker_processes: int):
+    """Signals the worker processes to stop by putting None into the search queue."""
+    for _ in range(max_worker_processes):
+        SEARCH_QUEUE.put(None)
 
 
 def monitor_and_log_search_queue_progress():
