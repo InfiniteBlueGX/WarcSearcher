@@ -35,10 +35,17 @@ def validate_results_output_directory(results_output_directory: str):
         sys.exit()
 
 
-def verify_regex_patterns_exist(regex_patterns_list: list):
+def validate_definitions_txt_files_exist(definition_files_list: list[str]):
+    """Validates that at least one valid regex pattern exists in the provided list."""
+    if not definition_files_list:
+        log_error("No definition text files were found.")
+        sys.exit()
+
+
+def verify_definitions_regex_patterns_exist(regex_patterns_list: list):
     """Validates that at least one valid regex pattern exists in the provided list."""
     if not regex_patterns_list:
-        log_error("There are no valid regular expressions in any of the definition files - terminating execution.")
+        log_error("There are no valid regular expressions in any of the definition files.")
         sys.exit()
 
 

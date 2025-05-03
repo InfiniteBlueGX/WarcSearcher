@@ -4,7 +4,7 @@ import re
 import config
 from logger import *
 from results import get_results_file_path
-from validators import verify_regex_patterns_exist
+from validators import validate_definitions_txt_files_exist, verify_definitions_regex_patterns_exist
 
 
 def get_definition_txt_files_list() -> list[str]:
@@ -33,6 +33,8 @@ def compile_regex_pattern_from_definition_file(definition_file_path: str) -> tup
 def create_result_files_associated_with_regexes_dict() -> dict[str, re.Pattern]:
     """Creates a dictionary where each key is an output file path and each value is a compiled regex pattern."""
     definition_files = get_definition_txt_files_list()
+    validate_definitions_txt_files_exist(definition_files)
+
     results_file_regex_pattern_dict = {}
     
     for definition_file_path in definition_files:
@@ -41,6 +43,6 @@ def create_result_files_associated_with_regexes_dict() -> dict[str, re.Pattern]:
             results_filepath = get_results_file_path(definition_file_path)
             results_file_regex_pattern_dict[results_filepath] = regex_pattern
     
-    verify_regex_patterns_exist(results_file_regex_pattern_dict)
+    verify_definitions_regex_patterns_exist(results_file_regex_pattern_dict)
     
     return results_file_regex_pattern_dict
