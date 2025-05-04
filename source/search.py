@@ -75,7 +75,7 @@ def initiate_warc_gz_read_threads(warc_gz_files: list):
         tasks = {executor.submit(read_warc_gz_records, gz_file_path) for gz_file_path in warc_gz_files}
 
         # Start the monitoring thread
-        monitor_thread = Thread(target=monitor_read_processes, args=(tasks, config.settings["MAX_RAM_USAGE_BYTES"]))
+        monitor_thread = Thread(target=monitoring_thread, args=(tasks, config.settings["MAX_RAM_USAGE_BYTES"]))
         monitor_thread.start()
 
         # Wait for all threads in the ThreadPoolExecutor to complete
@@ -86,9 +86,9 @@ def initiate_warc_gz_read_threads(warc_gz_files: list):
         monitor_thread.join()
 
 
-def monitor_read_processes(tasks: set[Future[None]], max_ram_usage_bytes: int):
+def monitoring_thread(tasks: set[Future[None]], max_ram_usage_bytes: int):
     """
-    Prints the total number of records once every second while the WARC.gz files are being read.
+    Prints the total number of records and the current queue size once every second while the WARC.gz files are being read.
     Also monitors the total RAM usage by the program process and waits if it exceeds the maximum specified in the config.ini.
     """
     while not all(future.done() for future in tasks):
@@ -181,8 +181,7 @@ def search_worker_process(search_queue, results_and_regexes_dict: dict,
 
 
 def initialize_worker_process_resources(results_and_regexes_dict: dict, zip_files_with_matches: bool):
-    """Initialize resources required by the search worker process."""
-
+    """Initialize resources used by the search worker process."""
     result_files_write_buffers = {
         results_file_path: StringIO() 
         for results_file_path in results_and_regexes_dict.keys()
@@ -209,7 +208,7 @@ def initialize_worker_process_resources(results_and_regexes_dict: dict, zip_file
 
 def search_warc_record(warc_record: WarcRecord, results_and_regexes_dict: dict, result_files_write_buffers: dict[Any, StringIO], 
                   zip_archives_dict: dict[str, zipfile.ZipFile], zip_files_with_matches: bool):
-    """Processes a single record, searching for regex matches. If matches are found, they are written to the corresponding result file."""
+    """Processes a single WARC record, searching for regex matches. If matches are found, they are written to the corresponding result file."""
     for results_file_path, regex in results_and_regexes_dict.items():
 
         matches_in_name = find_regex_matches(warc_record.name, regex)

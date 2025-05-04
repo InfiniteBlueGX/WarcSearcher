@@ -57,19 +57,24 @@ logger = Logger()
 def initialize_logging():
     logger.initialize_logging_to_file()
 
+
 def close_logging():
     logger.close_logging_file_handler()
+
 
 def log_error(message):
     logging.error(f"{message}")
     logger.increment_error()
 
+
 def log_warning(message):
     logging.warning(f"{message}")
     logger.increment_warning()
 
+
 def log_info(message):
     logging.info(f"{message}")
+
 
 def log_total_errors_and_warnings():
     logging.info(logger.get_final_report())
