@@ -1,3 +1,5 @@
+from asyncio import Future
+from threading import Event, Thread
 import time
 from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed, wait)
@@ -15,7 +17,8 @@ from utilities import *
 
 SEARCH_QUEUE = None
 TOTAL_RECORDS_READ: int = 0
-MAX_RAM_EXCEEDED: bool = False
+PAUSE_READ_THREADS_EVENT = Event()
+
 
 def start_search():
     warc_gz_files_list = glob.glob(f"{config.settings["WARC_GZ_ARCHIVES_DIRECTORY"]}/*.gz")
@@ -64,13 +67,44 @@ def calculate_max_search_worker_processes() -> int:
 
 
 def initiate_warc_gz_read_threads(warc_gz_files: list):
-    """Sets up 4 threads to read the WARC.gz files simultaneously - one thread per file."""
-    log_info(f"Reading records from {len(warc_gz_files)} WARC.gz files. This may take a while...")
-    with ThreadPoolExecutor(max_workers = 4) as executor:
+    """Sets up 4 threads to read the WARC.gz files simultaneously and a separate monitoring thread."""
+    log_info(f"Reading records from {len(warc_gz_files)} WARC.gz files...")
+
+    PAUSE_READ_THREADS_EVENT.set()
+    with ThreadPoolExecutor(max_workers=4) as executor:
         tasks = {executor.submit(read_warc_gz_records, gz_file_path) for gz_file_path in warc_gz_files}
 
+        # Start the monitoring thread
+        monitor_thread = Thread(target=monitor_read_processes, args=(tasks, config.settings["MAX_RAM_USAGE_BYTES"]))
+        monitor_thread.start()
+
+        # Wait for all threads in the ThreadPoolExecutor to complete
         for future in as_completed(tasks):
             future.result()
+
+        # Ensure the monitoring thread finishes
+        monitor_thread.join()
+
+
+def monitor_read_processes(tasks: set[Future[None]], max_ram_usage_bytes: int):
+    """
+    Prints the total number of records once every second while the WARC.gz files are being read.
+    Also monitors the total RAM usage by the program process and waits if it exceeds the maximum specified in the config.ini.
+    """
+    while not all(future.done() for future in tasks):
+        print(f"\rRecords read from the WARC.gz files: {TOTAL_RECORDS_READ}            ", end='', flush=True)
+        if get_total_memory_in_use() > max_ram_usage_bytes:
+            print("\n")
+            log_warning(
+                "RAM usage for the WarcSearcher process exceeds the maximum specified in the config.ini.\n"
+                "Will wait 10 seconds to allow time for the records in the search queue to process.\n"
+                "Consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.\n"
+            )
+            PAUSE_READ_THREADS_EVENT.clear() # Pause the read threads
+            time.sleep(10)
+        else:
+            PAUSE_READ_THREADS_EVENT.set() # Resume the read threads
+            time.sleep(1)
 
 
 def read_warc_gz_records(warc_gz_file_path: str):
@@ -91,6 +125,8 @@ def read_warc_gz_records(warc_gz_file_path: str):
                     return
 
                 for record in records:
+                    PAUSE_READ_THREADS_EVENT.wait()
+
                     record_name = record.headers['WARC-Target-URI']
                     record_content = record.reader.read()
                     
@@ -105,29 +141,8 @@ def read_warc_gz_records(warc_gz_file_path: str):
                         )
                     )
 
-                    if TOTAL_RECORDS_READ % 1000 == 0:
-                        print(f"\rRecords read from the WARC.gz files: {TOTAL_RECORDS_READ}            ", end='', flush=True)
-                        monitor_process_memory()
-
             except Exception as e:
                 log_error(f"Error ocurred when reading {os.path.basename(warc_gz_file_path)}: \n{e}")
-
-
-def monitor_process_memory():
-    """Monitors the memory usage of the process and prints a message if it exceeds the maximum specified in the config.ini."""
-    global MAX_RAM_EXCEEDED
-    if not MAX_RAM_EXCEEDED:
-        while get_total_memory_in_use() > config.settings["MAX_RAM_USAGE_BYTES"]:
-            MAX_RAM_EXCEEDED = True  # Prevents multiple warnings from being printed per-thread
-            print("\n")
-            log_warning(
-                "RAM usage for the WarcSearcher process is beyond the maximum specified in the config.ini.\n"
-                "Will attempt to continue after 10 seconds to allow time for the records in the search queue to process.\n"
-                "Consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.\n"
-            )
-            time.sleep(10)
-
-        MAX_RAM_EXCEEDED = False
 
 
 def search_worker_process(search_queue, results_and_regexes_dict: dict, 

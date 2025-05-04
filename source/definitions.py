@@ -12,7 +12,7 @@ def get_definition_txt_files_list() -> list[str]:
 
 
 def compile_regex_pattern_from_definition_file(definition_file_path: str) -> tuple[re.Pattern | None, bool]:
-    """Reads a regex pattern from a definition file and compiles it into a regex object."""
+    """Reads a regex pattern from a definition file and compiles it into a regex pattern object."""
     try:
         with open(definition_file_path, 'r', encoding='utf-8') as file:
             raw_regex = file.read().strip()
@@ -30,7 +30,10 @@ def compile_regex_pattern_from_definition_file(definition_file_path: str) -> tup
 
 
 def create_result_files_associated_with_regexes_dict() -> dict[str, re.Pattern]:
-    """Creates a dictionary where each key is an output file path and each value is a compiled regex pattern."""
+    """
+    Creates a dictionary with entries based on the definition files. 
+    Each key is a results text file path with a similar file name as the definition, and each value is a compiled regex pattern from the definition file.
+    """
     definition_files = get_definition_txt_files_list()
 
     results_file_regex_pattern_dict = {}
