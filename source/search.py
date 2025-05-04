@@ -14,6 +14,7 @@ from results import *
 from utilities import *
 
 SEARCH_QUEUE = None
+TOTAL_RECORDS_READ = 0
 
 def start_search():
     warc_gz_files_list = glob.glob(f"{config.settings["WARC_GZ_ARCHIVES_DIRECTORY"]}/*.gz")
@@ -35,8 +36,8 @@ def start_search():
 
 
 def initiate_search_processes(gz_files_list: list, results_and_regexes_dict: dict, result_files_write_locks_dict: dict):
-    max_worker_processes = calculate_max_workers()
-    log_info(f"Starting {max_worker_processes} worker processes to search the WARC.gz files, plus 1 to read the WARC.gz records.")
+    max_worker_processes = calculate_max_search_worker_processes()
+    log_info(f"Starting {max_worker_processes} worker processes to search the WARC.gz records, plus 1 to read them in.")
 
     with ProcessPoolExecutor(max_workers = max_worker_processes) as executor:
         futures = [executor.submit(search_worker_process, 
@@ -47,29 +48,32 @@ def initiate_search_processes(gz_files_list: list, results_and_regexes_dict: dic
 
         # Main process execution: read the gz files and put records into the search queue.
         initiate_warc_gz_read_threads(gz_files_list)
-        signal_worker_processes_to_stop(max_worker_processes)
-        monitor_and_print_search_queue_progress()
+        
+        print("\n")
+        log_info("All records read from the WARC.gz files. Waiting on search worker processes to finish...")
+        signal_worker_processes_to_stop(max_worker_processes) 
+        print_remaining_search_queue_items()
 
         wait(futures)
 
 
-def calculate_max_workers() -> int:
+def calculate_max_search_worker_processes() -> int:
     """Calculates the maximum number of worker processes to be used for searching the WARC.gz files."""
     return config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"]-1 if config.settings["MAX_CONCURRENT_SEARCH_PROCESSES"] > 1 else 1
 
 
-def initiate_warc_gz_read_threads(gz_files: list):
-    """Sets up 4 threads to read the gz files simultaneously - one thread per gz file."""
+def initiate_warc_gz_read_threads(warc_gz_files: list):
+    """Sets up 4 threads to read the WARC.gz files simultaneously - one thread per file."""
+    log_info(f"Reading records from {len(warc_gz_files)} WARC.gz files. This may take a while...")
     with ThreadPoolExecutor(max_workers = 4) as executor:
-        tasks = {executor.submit(read_warc_gz_records, gz_file_path) for gz_file_path in gz_files}
+        tasks = {executor.submit(read_warc_gz_records, gz_file_path) for gz_file_path in warc_gz_files}
 
         for future in as_completed(tasks):
             future.result()
 
 
 def read_warc_gz_records(warc_gz_file_path: str):
-    log_info(f"Reading records from {get_base_file_name(warc_gz_file_path)}.gz")
-
+    """Reads the records from the WARC.gz file and puts response records into the search queue."""
     # FastWARC optimization by using a FileStream + GZipStream like this: 
     # https://resiliparse.chatnoir.eu/en/stable/man/fastwarc.html#iterating-warc-files
     with FileStream(warc_gz_file_path, 'rb') as file_stream:
@@ -85,10 +89,13 @@ def read_warc_gz_records(warc_gz_file_path: str):
                     log_warning(f"No WARC records found in {os.path.basename(warc_gz_file_path)}")
                     return
 
-                for records_read, record in enumerate(records, start=1):
+                for record in records:
                     record_name = record.headers['WARC-Target-URI']
                     record_content = record.reader.read()
                     
+                    global TOTAL_RECORDS_READ
+                    TOTAL_RECORDS_READ += 1
+
                     SEARCH_QUEUE.put(
                         WarcRecord(
                             parent_warc_gz_file=warc_gz_file_path, 
@@ -97,20 +104,24 @@ def read_warc_gz_records(warc_gz_file_path: str):
                         )
                     )
 
-                    monitor_process_memory(records_read)
+                    if TOTAL_RECORDS_READ % 1000 == 0:
+                        print(f"\rRecords read from the WARC.gz files: {TOTAL_RECORDS_READ}            ", end='', flush=True)
+                        monitor_process_memory()
 
             except Exception as e:
                 log_error(f"Error ocurred when reading {os.path.basename(warc_gz_file_path)}: \n{e}")
 
 
-def monitor_process_memory(records_read: int):
-    if records_read % 500 == 0:
-        #print(f"Read {records_read} response records from the WARC")
-        process = psutil.Process()
-        while get_total_memory_in_use(process) > config.settings["MAX_RAM_USAGE_BYTES"]:
-            log_warning(f"RAM usage is beyond maximum specified in config.ini. Will attempt to continue after 10 seconds to allow time for the search queue to clear...")
-            log_warning(f"If you see this message often, consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.")
-            time.sleep(10)
+def monitor_process_memory():
+    """Monitors the memory usage of the process and prints a message if it exceeds the maximum specified in the config.ini."""  
+    while get_total_memory_in_use() > config.settings["MAX_RAM_USAGE_BYTES"]:
+        print("\n")
+        log_warning(
+            "RAM usage for the WarcSearcher process is beyond the maximum specified in the config.ini.\n"
+            "Will attempt to continue after 10 seconds to allow time for the records in the search queue to process.\n"
+            "Consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.\n"
+        )
+        time.sleep(10)
 
 
 def search_worker_process(search_queue, results_and_regexes_dict: dict, 
@@ -232,10 +243,8 @@ def signal_worker_processes_to_stop(max_worker_processes: int):
         SEARCH_QUEUE.put(None)
 
 
-def monitor_and_print_search_queue_progress():
+def print_remaining_search_queue_items():
     """Monitors the search queue after all records are read and prints the remaining items in the queue to be searched."""
-    log_info("All records read from the WARC.gz files. Waiting on search worker processes to finish...")
-
     while SEARCH_QUEUE.qsize() > 0:
         # Extra spaces are needed to properly overwrite the previous line in the console
         print(f"\rRemaining records to search: {SEARCH_QUEUE.qsize()}            ", end='', flush=True)

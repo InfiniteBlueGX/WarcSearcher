@@ -22,8 +22,9 @@ def is_file_binary(file_data) -> bool:
     return bool(first_1024_chars.translate(None, text_chars))
 
 
-def get_total_memory_in_use(process: psutil.Process) -> int:
+def get_total_memory_in_use() -> int:
     """Returns the total memory in use by the WarcSearcher process and its subprocesses."""
+    process = psutil.Process()
     mem_info = process.memory_info()
     resident_set_size_memory = mem_info.rss
 
