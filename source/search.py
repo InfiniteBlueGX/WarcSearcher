@@ -107,27 +107,27 @@ def read_warc_gz_records(warc_gz_file_path: str):
 
                     if TOTAL_RECORDS_READ % 1000 == 0:
                         print(f"\rRecords read from the WARC.gz files: {TOTAL_RECORDS_READ}            ", end='', flush=True)
-                        if not MAX_RAM_EXCEEDED:
-                            monitor_process_memory()
+                        monitor_process_memory()
 
             except Exception as e:
                 log_error(f"Error ocurred when reading {os.path.basename(warc_gz_file_path)}: \n{e}")
 
 
 def monitor_process_memory():
-    """Monitors the memory usage of the process and prints a message if it exceeds the maximum specified in the config.ini."""  
-    while get_total_memory_in_use() > config.settings["MAX_RAM_USAGE_BYTES"]:
-        global MAX_RAM_EXCEEDED
-        MAX_RAM_EXCEEDED = True
-        print("\n")
-        log_warning(
-            "RAM usage for the WarcSearcher process is beyond the maximum specified in the config.ini.\n"
-            "Will attempt to continue after 10 seconds to allow time for the records in the search queue to process.\n"
-            "Consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.\n"
-        )
-        time.sleep(10)
-        
-    MAX_RAM_EXCEEDED = False
+    """Monitors the memory usage of the process and prints a message if it exceeds the maximum specified in the config.ini."""
+    global MAX_RAM_EXCEEDED
+    if not MAX_RAM_EXCEEDED:
+        while get_total_memory_in_use() > config.settings["MAX_RAM_USAGE_BYTES"]:
+            MAX_RAM_EXCEEDED = True
+            print("\n")
+            log_warning(
+                "RAM usage for the WarcSearcher process is beyond the maximum specified in the config.ini.\n"
+                "Will attempt to continue after 10 seconds to allow time for the records in the search queue to process.\n"
+                "Consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.\n"
+            )
+            time.sleep(10)
+
+        MAX_RAM_EXCEEDED = False
 
 
 def search_worker_process(search_queue, results_and_regexes_dict: dict, 
