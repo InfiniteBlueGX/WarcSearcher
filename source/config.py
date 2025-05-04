@@ -7,8 +7,8 @@ settings = {
     "SEARCH_REGEX_DEFINITIONS_DIRECTORY": '',
     "RESULTS_OUTPUT_DIRECTORY": '',
     "ZIP_FILES_WITH_MATCHES": False,
-    "MAX_CONCURRENT_SEARCH_PROCESSES": 4,
-    "MAX_RAM_USAGE_BYTES": 2000000000,
+    "MAX_CONCURRENT_SEARCH_PROCESSES": os.cpu_count(),
+    "MAX_RAM_USAGE_BYTES": get_60_percent_ram_limit(),
     "SEARCH_BINARY_FILES": False,
 }
 
@@ -45,10 +45,10 @@ def read_optional_config_ini_variables(parser: configparser.ConfigParser):
     """Reads the optional variables from the config.ini file and sets them in the config settings dictionary."""
     settings["ZIP_FILES_WITH_MATCHES"] = parser.getboolean('OPTIONAL', 'ZIP_FILES_WITH_MATCHES')
 
-    parsed_max_concurrent_search_processes = parser.getint('OPTIONAL', 'MAX_CONCURRENT_SEARCH_PROCESSES')
+    parsed_max_concurrent_search_processes = parser.get('OPTIONAL', 'MAX_CONCURRENT_SEARCH_PROCESSES').lower()
     settings["MAX_CONCURRENT_SEARCH_PROCESSES"] = validate_and_get_max_concurrent_search_processes(parsed_max_concurrent_search_processes)
 
-    parsed_max_ram_useage_bytes = parser.getint('OPTIONAL', 'MAX_RAM_USAGE_BYTES')
+    parsed_max_ram_useage_bytes = parser.get('OPTIONAL', 'MAX_RAM_USAGE_BYTES').lower()
     settings["MAX_RAM_USAGE_BYTES"] = validate_and_get_max_ram_usage_bytes(parsed_max_ram_useage_bytes)
 
     settings["SEARCH_BINARY_FILES"] = parser.getboolean('OPTIONAL', 'SEARCH_BINARY_FILES')

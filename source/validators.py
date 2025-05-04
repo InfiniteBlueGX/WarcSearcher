@@ -3,7 +3,7 @@ import os
 import sys
 
 from logger import *
-from utilities import get_total_ram_bytes_rounded
+from utilities import get_60_percent_ram_limit, get_total_ram_bytes_rounded
 
 
 def validate_and_get_config_ini_path() -> str:
@@ -98,8 +98,8 @@ def validate_and_get_max_ram_usage_bytes(parsed_max_ram_usage_bytes: str) -> int
     except ValueError:
         log_warning(
             f"Invalid value for MAX_RAM_USAGE_BYTES in config.ini: {parsed_max_ram_usage_bytes}. "
-            f"Setting maximum RAM usage to the total amount of RAM available on the PC."
+            f"Setting maximum RAM usage to 60% of the total amount of RAM available on the PC."
         )
-        max_ram_usage_in_bytes = total_machine_ram_in_bytes
+        max_ram_usage_in_bytes = get_60_percent_ram_limit()
 
     return max_ram_usage_in_bytes

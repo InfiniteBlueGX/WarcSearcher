@@ -42,6 +42,12 @@ def get_total_ram_bytes_rounded() -> int:
     return (total_ram // (1024 ** 3)) * (1024 ** 3)
 
 
+def get_60_percent_ram_limit():
+    """Returns 60% of the total RAM available on the machine in bytes."""
+    total_ram = psutil.virtual_memory().total
+    return int(total_ram * 0.6)
+
+
 def sanitize_file_name(file_name: str) -> str:
     """Sanitizes a string intended to be used as a file name by removing web prefixes and invalid characters."""
     web_prefixes_removed = file_name.replace('http://', '').replace('https://', '').replace('www.', '')

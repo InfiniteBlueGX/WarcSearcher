@@ -14,8 +14,8 @@ from results import *
 from utilities import *
 
 SEARCH_QUEUE = None
-TOTAL_RECORDS_READ = 0
-MAX_RAM_EXCEEDED = False
+TOTAL_RECORDS_READ: int = 0
+MAX_RAM_EXCEEDED: bool = False
 
 def start_search():
     warc_gz_files_list = glob.glob(f"{config.settings["WARC_GZ_ARCHIVES_DIRECTORY"]}/*.gz")
@@ -118,7 +118,7 @@ def monitor_process_memory():
     global MAX_RAM_EXCEEDED
     if not MAX_RAM_EXCEEDED:
         while get_total_memory_in_use() > config.settings["MAX_RAM_USAGE_BYTES"]:
-            MAX_RAM_EXCEEDED = True
+            MAX_RAM_EXCEEDED = True  # Prevents multiple warnings from being printed per-thread
             print("\n")
             log_warning(
                 "RAM usage for the WarcSearcher process is beyond the maximum specified in the config.ini.\n"
