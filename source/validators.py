@@ -6,7 +6,7 @@ from logger import *
 from utilities import get_total_ram_bytes_rounded
 
 
-def validate_and_get_config_ini_path():
+def validate_and_get_config_ini_path() -> str:
     if os.path.isfile('config.ini'):
         config_path = 'config.ini'
     elif os.path.isfile('../config.ini'):
@@ -18,7 +18,7 @@ def validate_and_get_config_ini_path():
     return config_path
 
 
-def validate_and_get_warc_gz_archives_directory(parsed_warc_gz_archives_directory: str):
+def validate_and_get_warc_gz_archives_directory(parsed_warc_gz_archives_directory: str) -> str:
     """Validates that the directory containing the warc.gz archives exists and has .gz files present."""
     if not os.path.exists(parsed_warc_gz_archives_directory):
         log_error(f"Directory containing the warc.gz archives to search does not exist: {parsed_warc_gz_archives_directory}. Exiting.")
@@ -31,7 +31,7 @@ def validate_and_get_warc_gz_archives_directory(parsed_warc_gz_archives_director
     return parsed_warc_gz_archives_directory
 
 
-def validate_and_get_search_regex_definitions_directory(parsed_search_regex_definitions_directory: str):
+def validate_and_get_search_regex_definitions_directory(parsed_search_regex_definitions_directory: str) -> str:
     """Validates that the directory containing the regex definition text files exists and has .txt files present."""
     if not os.path.exists(parsed_search_regex_definitions_directory):
         log_error(f"Directory containing the regex definition .txt files to search with does not exist: {parsed_search_regex_definitions_directory}. Exiting.")
@@ -44,7 +44,7 @@ def validate_and_get_search_regex_definitions_directory(parsed_search_regex_defi
     return parsed_search_regex_definitions_directory
 
 
-def validate_and_get_results_output_directory(parsed_results_output_directory: str):
+def validate_and_get_results_output_directory(parsed_results_output_directory: str) -> str:
     """Validates that the directory to output the search results to exists."""
     if not os.path.exists(parsed_results_output_directory):
         log_error(f"Directory to output the search results to does not exist: {parsed_results_output_directory}. Exiting.")

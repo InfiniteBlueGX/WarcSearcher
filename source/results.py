@@ -1,8 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
+from io import StringIO
 from multiprocessing.managers import SyncManager
 import re
 import shutil
+from typing import Iterable
 
 from utilities import get_base_file_name, merge_zip_archives
 import config
@@ -25,7 +27,6 @@ def initialize_results_output_subdirectory():
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
         os.makedirs(os.path.join(results_output_subdirectory, "temp"))
-        log_info("Temporary folder for zipped results created in the results subdirectory.")
 
 
 def get_results_file_path(definition_file_path: str) -> str:
@@ -34,7 +35,7 @@ def get_results_file_path(definition_file_path: str) -> str:
     return os.path.join(results_output_subdirectory, results_file_name)
 
 
-def create_result_files_write_locks_dict(manager: SyncManager, results_file_paths) -> dict:
+def create_result_files_write_locks_dict(manager: SyncManager, results_file_paths: Iterable[str]) -> dict:
     """Create write locks for the specified paths to the results files."""
     write_locks_dict = manager.dict()
     for txt_path in results_file_paths:
@@ -53,7 +54,7 @@ def write_result_files_headers(results_and_regexes_dict: dict[str, re.Pattern]):
             results_file.write('___________________________________________________________________\n\n')
 
 
-def write_record_to_output_buffer(output_buffer, matches_list_name, matches_list_contents, parent_warc_gz_file, file_name):
+def write_record_to_output_buffer(output_buffer: StringIO, matches_list_name: list, matches_list_contents: list, parent_warc_gz_file: str, file_name: str):
     """Writes the matched record information to the output buffer."""
 
     output_buffer.write(f'[Archive: {parent_warc_gz_file}]\n')
@@ -65,7 +66,7 @@ def write_record_to_output_buffer(output_buffer, matches_list_name, matches_list
     output_buffer.write('___________________________________________________________________\n\n')
 
 
-def write_matches_to_output_buffer(output_buffer, matches_list, match_type):
+def write_matches_to_output_buffer(output_buffer: StringIO, matches_list: list, match_type: str):
     """Writes the matches found to the output buffer."""
     if matches_list:
         unique_matches_set = [match for match in set(matches_list)]
@@ -100,7 +101,7 @@ def get_results_zip_archive_file_path(zip_archives_dict: dict, results_file_path
     return zip_archive_path
 
 
-def finalize_results_zip_archives(results_file_paths):
+def finalize_results_zip_archives(results_file_paths: Iterable[str]):
     log_info("Finalizing the zip archives, please wait...")
     tempdir = os.path.join(results_output_subdirectory, "temp")
     with ThreadPoolExecutor() as executor:
