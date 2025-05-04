@@ -68,7 +68,7 @@ def calculate_max_search_worker_processes() -> int:
 
 def initiate_warc_gz_read_threads(warc_gz_files: list):
     """Sets up 4 threads to read the WARC.gz files simultaneously and a separate monitoring thread."""
-    log_info(f"Reading records from {len(warc_gz_files)} WARC.gz files...")
+    log_info(f"Reading records from {len(warc_gz_files)} WARC.gz files...\n")
 
     PAUSE_READ_THREADS_EVENT.set()
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -92,7 +92,7 @@ def monitor_read_processes(tasks: set[Future[None]], max_ram_usage_bytes: int):
     Also monitors the total RAM usage by the program process and waits if it exceeds the maximum specified in the config.ini.
     """
     while not all(future.done() for future in tasks):
-        print(f"\rRecords read from the WARC.gz files: {TOTAL_RECORDS_READ}            ", end='', flush=True)
+        print(f"\rTotal WARC records read: {TOTAL_RECORDS_READ} | Records in the search queue: {SEARCH_QUEUE.qsize()}            ", end='', flush=True)
         if get_total_memory_in_use() > max_ram_usage_bytes:
             print("\n")
             log_warning(
