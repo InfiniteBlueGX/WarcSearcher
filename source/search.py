@@ -16,7 +16,7 @@ from utilities import *
 SEARCH_QUEUE = None
 
 def start_search():
-    gz_files_list = validate_and_get_warc_gz_files_list(config.settings["WARC_GZ_ARCHIVES_DIRECTORY"])
+    warc_gz_files_list = glob.glob(f"{config.settings["WARC_GZ_ARCHIVES_DIRECTORY"]}/*.gz")
 
     results_and_regexes_dict = create_result_files_associated_with_regexes_dict()
     manager = Manager()
@@ -27,7 +27,7 @@ def start_search():
     global SEARCH_QUEUE
     SEARCH_QUEUE = manager.Queue()
 
-    initiate_search_processes(gz_files_list, results_and_regexes_dict, result_files_write_locks_dict)
+    initiate_search_processes(warc_gz_files_list, results_and_regexes_dict, result_files_write_locks_dict)
     log_info("Finished Searching.")
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
