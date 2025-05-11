@@ -8,7 +8,6 @@ from multiprocessing import Manager
 from typing import Any
 
 from config import *
-from definitions import create_result_files_associated_with_regexes_dict
 from fastwarc.stream_io import FileStream, GZipStream
 from fastwarc.warc import ArchiveIterator, WarcRecordType
 from warc_record import WarcRecord
