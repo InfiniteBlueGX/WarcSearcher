@@ -14,7 +14,10 @@ results_output_subdirectory = ''
 
 
 def initialize_results_output_subdirectory():
-    """Creates a timestamped subdirectory in the results output directory to store the search results for the current execution."""
+    """
+    Creates and initializes a timestamped subdirectory in the results output directory 
+    where the search results for the current execution will be output to.
+    """
     results_subdirectory_name = "WarcSearcher_Results_" + datetime.datetime.now().strftime('%m-%d-%y_%H_%M_%S')
     
     results_output_subdirectory_path = os.path.join(config.settings["RESULTS_OUTPUT_DIRECTORY"], results_subdirectory_name)

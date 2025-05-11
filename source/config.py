@@ -4,7 +4,7 @@ import os
 import sys
 
 from logger import *
-from utilities import (get_60_percent_ram_usage_limit_in_bytes,
+from utilities import (get_60_percent_ram_usage_limit_bytes,
                        get_total_ram_bytes_rounded)
 
 settings = {
@@ -13,7 +13,7 @@ settings = {
     "RESULTS_OUTPUT_DIRECTORY": '',
     "ZIP_FILES_WITH_MATCHES": False,
     "MAX_CONCURRENT_SEARCH_PROCESSES": os.cpu_count(),
-    "MAX_RAM_USAGE_BYTES": get_60_percent_ram_usage_limit_in_bytes(),
+    "MAX_RAM_USAGE_BYTES": get_60_percent_ram_usage_limit_bytes(),
     "SEARCH_BINARY_FILES": False,
 }
 
@@ -154,6 +154,6 @@ def validate_and_get_max_ram_usage_bytes(parsed_max_ram_usage_bytes: str) -> int
             f"Invalid value for MAX_RAM_USAGE_BYTES in config.ini: {parsed_max_ram_usage_bytes}. "
             f"Setting maximum RAM usage to 60% of the total amount of RAM available on the PC."
         )
-        max_ram_usage_in_bytes = get_60_percent_ram_usage_limit_in_bytes()
+        max_ram_usage_in_bytes = get_60_percent_ram_usage_limit_bytes()
 
     return max_ram_usage_in_bytes

@@ -2,7 +2,7 @@ import atexit
 
 from config import read_config_ini_variables
 from results import *
-from search import start_search
+from search import perform_search
 from search_timer import SearchTimer
 
 searchTimer = SearchTimer()
@@ -33,7 +33,7 @@ def on_exit():
 def main() -> int:
     """Program entry point."""
     setup()
-    start_search()
+    perform_search()
 
     return 0
 

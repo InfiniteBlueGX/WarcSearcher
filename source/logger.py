@@ -47,7 +47,7 @@ class Logger:
         self.warning_count += 1
     
 
-    def get_final_report(self):
+    def get_total_errors_and_warnings(self):
         """Return a summary of the total errors and warnings."""
         return f"Errors: {self.error_count}, Warnings: {self.warning_count}"
 
@@ -77,4 +77,4 @@ def log_info(message):
 
 
 def log_total_errors_and_warnings():
-    logging.info(logger.get_final_report())
+    logging.info(logger.get_total_errors_and_warnings())
