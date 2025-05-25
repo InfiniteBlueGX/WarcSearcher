@@ -22,30 +22,9 @@ def is_file_binary(file_data) -> bool:
     return bool(first_1024_chars.translate(None, text_chars))
 
 
-def get_total_ram_usage_by_process() -> int:
-    """Returns the total memory in use by the current process and its subprocesses."""
-    process = psutil.Process()
-    mem_info = process.memory_info()
-    resident_set_size_memory = mem_info.rss
-
-    subprocesses = process.children(recursive=True)
-    for subprocess in subprocesses:
-        mem_info = subprocess.memory_info()
-        resident_set_size_memory += mem_info.rss
-
-    return resident_set_size_memory
-
-
-def get_total_ram_bytes_rounded() -> int:
-    """Returns the total RAM of the machine in bytes, rounded down to the nearest GB."""
-    total_ram = psutil.virtual_memory().total
-    return (total_ram // (1024 ** 3)) * (1024 ** 3)
-
-
-def get_60_percent_ram_usage_limit_bytes():
-    """Returns 60% of the total RAM available on the machine in bytes."""
-    total_ram = psutil.virtual_memory().total
-    return int(total_ram * 0.6)
+def get_total_ram_used_percent() -> int:
+    """Returns the percentage of RAM currently in use on the machine."""
+    return int(psutil.virtual_memory().percent)
 
 
 def sanitize_file_name_string(file_name: str) -> str:

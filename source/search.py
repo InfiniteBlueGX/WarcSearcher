@@ -36,7 +36,7 @@ def perform_search():
     SEARCH_QUEUE = manager.Queue()
 
     initiate_search_worker_processes(warc_gz_files_list, results_and_regexes_dict, result_files_write_locks_dict)
-    log_info("Finished Searching.")
+    log_info("Finished searching.")
 
     if config.settings["ZIP_FILES_WITH_MATCHES"]:
         finalize_results_zip_archives(results_and_regexes_dict.keys())
@@ -58,7 +58,7 @@ def initiate_search_worker_processes(gz_files_list: list, results_and_regexes_di
         initiate_warc_gz_read_threads(gz_files_list)
         
         print("\n")
-        log_info("All records read from the WARC.gz files. Waiting on search worker processes to finish...")
+        log_info("All records read from the WARC.gz files. Waiting on search worker processes to finish...\n")
 
         signal_worker_processes_to_stop(max_worker_processes) 
         print_remaining_search_queue_items()
@@ -79,7 +79,7 @@ def initiate_warc_gz_read_threads(warc_gz_files: list):
     with ThreadPoolExecutor(max_workers=4) as executor:
         tasks = {executor.submit(read_warc_gz_records, gz_file_path) for gz_file_path in warc_gz_files}
 
-        monitor_thread = Thread(target=monitoring_thread, args=(tasks, config.settings["MAX_RAM_USAGE_BYTES"]))
+        monitor_thread = Thread(target=monitoring_thread, args=(tasks, config.settings["MAX_RAM_USAGE_PERCENT"]))
         monitor_thread.start()
 
         for future in as_completed(tasks):
@@ -88,33 +88,35 @@ def initiate_warc_gz_read_threads(warc_gz_files: list):
         monitor_thread.join()
 
 
-def monitoring_thread(tasks: set[Future[None]], max_ram_usage_bytes: int):
+def monitoring_thread(tasks: set[Future[None]], max_ram_usage_percent_target: int):
     """
-    Prints the total number of records and the current queue size at one second second intervals while the WARC.gz files are being read.
-    Also performs a check at each interval to check the total RAM usage by the WarcSearcher process and its subprocesses.
+    Prints the total number of records and the current queue size at half second intervals while the WARC.gz files are being read.
+    Also performs a check at each interval to check the percentage of total RAM in use on the machine.
     """
     while not all(future.done() for future in tasks):
-        print(f"\rTotal WARC records read: {TOTAL_RECORDS_READ} | Records in the search queue: {SEARCH_QUEUE.qsize()}            ", end='', flush=True)
-        monitor_processes_ram_usage(max_ram_usage_bytes)
+        ram_in_use_percent = get_total_ram_used_percent()
+        print(f"\rTotal WARC records read: {TOTAL_RECORDS_READ} | Records in the search queue: {SEARCH_QUEUE.qsize()} | RAM used: {ram_in_use_percent}%           ", end='', flush=True)
+        monitor_ram_usage(ram_in_use_percent, max_ram_usage_percent_target)
+        time.sleep(0.5)
 
 
-def monitor_processes_ram_usage(max_ram_usage_bytes):
+def monitor_ram_usage(ram_in_use_percent: int, max_ram_usage_percent_target: int):
     """
-    Monitors the RAM usage of the WarcSearcher process and its subprocesses. 
-    If it exceeds the maximum specified in the config.ini, it pauses the read threads.
+    Monitors the RAM usage of the machine to ensure it does not exceed the maximum percentage specified in the config.ini. 
+    If it exceeds the maximum percentage specified in the config.ini, it sets the pause read threads event flag.
     """
-    if get_total_ram_usage_by_process() > max_ram_usage_bytes:
+    if ram_in_use_percent >= max_ram_usage_percent_target:
         print("\n")
         log_warning(
-                "RAM usage for the WarcSearcher process exceeds the maximum specified in the config.ini.\n"
-                "Will wait 10 seconds to allow time for the records in the search queue to process.\n"
-                "Consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_BYTES values in the config.ini.\n"
+                "RAM usage exceeds the MAX_RAM_USAGE_PERCENT value specified in the config.ini.\n"
+                "Waiting 10 seconds to allow time for the records in the search queue to process.\n"
+                "Consider increasing the MAX_CONCURRENT_SEARCH_PROCESSES or MAX_RAM_USAGE_PERCENT values in the config.ini.\n"
             )
         PAUSE_READ_THREADS_EVENT.clear() # Pause the read threads when RAM usage exceeds the limit
         time.sleep(10)
     else:
-        PAUSE_READ_THREADS_EVENT.set() # Resume the read threads when RAM usage is below the limit
-        time.sleep(1)
+        if not PAUSE_READ_THREADS_EVENT.is_set():
+            PAUSE_READ_THREADS_EVENT.set() # Resume the read threads when RAM usage is below the limit
 
 
 def read_warc_gz_records(warc_gz_file_path: str):
@@ -274,10 +276,10 @@ def signal_worker_processes_to_stop(max_worker_processes: int):
 
 
 def print_remaining_search_queue_items():
-    """Prints the remaining items in the search queue at one second intervals."""
+    """Prints the remaining items in the search queue at half second intervals."""
     while SEARCH_QUEUE.qsize() > 0:
         # Extra spaces are needed to properly overwrite the previous line in the console
         print(f"\rRemaining records to search: {SEARCH_QUEUE.qsize()}            ", end='', flush=True)
-        time.sleep(1)
+        time.sleep(0.5)
         
     print(f"\rRemaining records to search: 0            \n\n", end='', flush=True)

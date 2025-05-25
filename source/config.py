@@ -4,16 +4,14 @@ import os
 import sys
 
 from logger import *
-from utilities import (get_60_percent_ram_usage_limit_bytes,
-                       get_total_ram_bytes_rounded)
 
 settings = {
     "WARC_GZ_ARCHIVES_DIRECTORY": '',
     "SEARCH_REGEX_DEFINITIONS_DIRECTORY": '',
     "RESULTS_OUTPUT_DIRECTORY": '',
     "ZIP_FILES_WITH_MATCHES": False,
-    "MAX_CONCURRENT_SEARCH_PROCESSES": os.cpu_count(),
-    "MAX_RAM_USAGE_BYTES": get_60_percent_ram_usage_limit_bytes(),
+    "MAX_CONCURRENT_SEARCH_PROCESSES": None,
+    "MAX_RAM_USAGE_PERCENT": 90,
     "SEARCH_BINARY_FILES": False,
 }
 
@@ -53,8 +51,8 @@ def read_optional_config_ini_variables(parser: configparser.ConfigParser):
     parsed_max_concurrent_search_processes = parser.get('OPTIONAL', 'MAX_CONCURRENT_SEARCH_PROCESSES').lower()
     settings["MAX_CONCURRENT_SEARCH_PROCESSES"] = validate_and_get_max_concurrent_search_processes(parsed_max_concurrent_search_processes)
 
-    parsed_max_ram_useage_bytes = parser.get('OPTIONAL', 'MAX_RAM_USAGE_BYTES').lower()
-    settings["MAX_RAM_USAGE_BYTES"] = validate_and_get_max_ram_usage_bytes(parsed_max_ram_useage_bytes)
+    parsed_max_ram_useage_bytes = parser.get('OPTIONAL', 'MAX_RAM_USAGE_PERCENT').lower()
+    settings["MAX_RAM_USAGE_PERCENT"] = validate_and_get_max_ram_usage_percent(parsed_max_ram_useage_bytes)
 
     settings["SEARCH_BINARY_FILES"] = parser.getboolean('OPTIONAL', 'SEARCH_BINARY_FILES')
 
@@ -126,34 +124,32 @@ def validate_and_get_max_concurrent_search_processes(parsed_max_concurrent_searc
     except ValueError:
         log_warning(
             f"Invalid value for MAX_CONCURRENT_SEARCH_PROCESSES in config.ini: {parsed_max_concurrent_search_processes}. "
-            f"Setting number of concurrent search processes to maximum logical processors available on the PC."
+            f"Defaulting to the maximum number of logical processors available on the PC ({total_logical_processors})."
         )
         max_concurrent_search_processes = total_logical_processors
 
     return max_concurrent_search_processes
 
 
-def validate_and_get_max_ram_usage_bytes(parsed_max_ram_usage_bytes: str) -> int:
+def validate_and_get_max_ram_usage_percent(parsed_max_ram_usage_percent: str) -> int:
     """
-    Validates and returns the config.ini value for the WarcSearcher process's maximum RAM usage in bytes.
-    If invalid, it defaults to 60% of the amount of RAM available on the machine.
+    Validates and returns the config.ini value for the maximum RAM usage percentage.
+    If invalid, it defaults to 90% of the amount of RAM available on the machine.
     """
-    total_machine_ram_in_bytes = get_total_ram_bytes_rounded()
-
     try:
-        max_ram_usage_in_bytes = (
-            total_machine_ram_in_bytes if parsed_max_ram_usage_bytes == "none" 
-            else int(parsed_max_ram_usage_bytes)
+        max_ram_usage_percent = (
+            100 if parsed_max_ram_usage_percent == "none" 
+            else int(parsed_max_ram_usage_percent)
         )
 
-        if max_ram_usage_in_bytes <= 0 or max_ram_usage_in_bytes > total_machine_ram_in_bytes:
+        if max_ram_usage_percent <= 0 or max_ram_usage_percent > 100:
             raise ValueError()
 
     except ValueError:
         log_warning(
-            f"Invalid value for MAX_RAM_USAGE_BYTES in config.ini: {parsed_max_ram_usage_bytes}. "
-            f"Setting maximum RAM usage to 60% of the total amount of RAM available on the PC."
+            f"Invalid value for MAX_RAM_USAGE_PERCENT in config.ini: {parsed_max_ram_usage_percent}. "
+            f"Defaulting to 90% of the total RAM available on the machine."
         )
-        max_ram_usage_in_bytes = get_60_percent_ram_usage_limit_bytes()
+        max_ram_usage_percent = 90
 
-    return max_ram_usage_in_bytes
+    return max_ram_usage_percent
