@@ -40,11 +40,11 @@ def test_increment_warning(logger_instance):
     logger_instance.increment_warning()
     assert logger_instance.warning_count == initial_count + 1
 
-def test_get_final_report(logger_instance):
+def test_get_total_errors_and_warnings(logger_instance):
     logger_instance.increment_error()
     logger_instance.increment_warning()
     logger_instance.increment_error()
-    report = logger_instance.get_final_report()
+    report = logger_instance.get_total_errors_and_warnings()
     assert report == "Errors: 2, Warnings: 1"
 
 def test_log_file_content():
