@@ -17,7 +17,7 @@ settings = {
 
 
 def read_config_ini_variables():
-    """Reads the variables found in ther config.ini file after ensuring the config.ini file exists."""
+    """Reads the variables found in the config.ini file after ensuring the config.ini file exists."""
     config_path = validate_and_get_config_ini_path()
 
     parser = configparser.ConfigParser()
@@ -33,7 +33,7 @@ def read_config_ini_variables():
 
 
 def read_required_config_ini_variables(parser: configparser.ConfigParser):
-    """Reads the required variables from the config.ini file, validates them, and sets them in the config dictionary."""
+    """Reads the required variables from the config.ini file, validates them, and sets them in the global config settings dictionary."""
     parsed_warc_gz_archives_directory = parser.get('REQUIRED', 'WARC_GZ_ARCHIVES_DIRECTORY')
     settings["WARC_GZ_ARCHIVES_DIRECTORY"] = validate_and_get_warc_gz_archives_directory(parsed_warc_gz_archives_directory)
 
@@ -45,7 +45,7 @@ def read_required_config_ini_variables(parser: configparser.ConfigParser):
 
 
 def read_optional_config_ini_variables(parser: configparser.ConfigParser):
-    """Reads the optional variables from the config.ini file and sets them in the config settings dictionary."""
+    """Reads the optional variables from the config.ini file and sets them in the global config settings dictionary."""
     settings["ZIP_FILES_WITH_MATCHES"] = parser.getboolean('OPTIONAL', 'ZIP_FILES_WITH_MATCHES')
 
     parsed_max_concurrent_search_processes = parser.get('OPTIONAL', 'MAX_CONCURRENT_SEARCH_PROCESSES').lower()
@@ -58,7 +58,7 @@ def read_optional_config_ini_variables(parser: configparser.ConfigParser):
 
 
 def validate_and_get_config_ini_path() -> str:
-    """Validates and returns the path to the config.ini file."""
+    """Validates and returns the path to the config.ini file. It must exist in the current working directory or its parent."""
     if os.path.isfile('config.ini'):
         config_path = 'config.ini'
     elif os.path.isfile('../config.ini'):

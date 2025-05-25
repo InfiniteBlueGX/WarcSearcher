@@ -104,19 +104,18 @@ def write_result_files_headers(results_and_regexes_dict: dict[str, re.Pattern]):
             results_file.write('___________________________________________________________________\n\n')
 
 
-def write_record_to_output_buffer(output_buffer: StringIO, matches_list_name: list, matches_list_contents: list, parent_warc_gz_file: str, file_name: str):
+def write_record_info_to_result_output_buffer(output_buffer: StringIO, matches_list_name: list, matches_list_contents: list, parent_warc_gz_file: str, file_name: str):
     """Writes the matched record information to the output buffer."""
-
     output_buffer.write(f'[Archive: {parent_warc_gz_file}]\n')
     output_buffer.write(f'[File: {file_name}]\n\n')
 
-    write_matches_to_output_buffer(output_buffer, matches_list_name, 'file name')
-    write_matches_to_output_buffer(output_buffer, matches_list_contents, 'file contents')
+    write_matches_to_result_output_buffer(output_buffer, matches_list_name, 'file name')
+    write_matches_to_result_output_buffer(output_buffer, matches_list_contents, 'file contents')
 
     output_buffer.write('___________________________________________________________________\n\n')
 
 
-def write_matches_to_output_buffer(output_buffer: StringIO, matches_list: list, match_type: str):
+def write_matches_to_result_output_buffer(output_buffer: StringIO, matches_list: list, match_type: str):
     """Writes the matches found to the output buffer."""
     if matches_list:
         unique_matches_set = [match for match in set(matches_list)]
@@ -134,6 +133,10 @@ def move_log_file_to_results_subdirectory():
 
 
 def log_results_output_path():
+    """
+    Logs the path to the results subdirectory if one exists. If the subdirectory doesn't exist,
+    log a notification that one was not created and the path to the log file in the current working directory.
+    """
     if results_output_subdirectory != '':
         log_info(f"Results output to: {results_output_subdirectory}")
     else:
@@ -141,7 +144,7 @@ def log_results_output_path():
 
 
 def get_results_zip_archive_file_path(zip_archives_dict: dict, results_file_path: str) -> str:
-    """Gets a zip file path for the given results file path."""
+    """Returns a zip archive file path based on the name of the provided results file path."""
     temp_process_subdir_for_zip = os.path.dirname(next(iter(zip_archives_dict.keys())))
     zip_archive_path = os.path.join(
                     temp_process_subdir_for_zip, 
@@ -152,6 +155,7 @@ def get_results_zip_archive_file_path(zip_archives_dict: dict, results_file_path
 
 
 def finalize_results_zip_archives(results_file_paths: Iterable[str]):
+    """Delegates multiple threads to merge all identically named zip archives output from the search worker processes."""
     log_info("Finalizing the zip archives, please wait...")
     tempdir = os.path.join(results_output_subdirectory, "temp")
     with ThreadPoolExecutor() as executor:

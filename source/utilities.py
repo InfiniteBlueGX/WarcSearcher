@@ -23,7 +23,7 @@ def is_file_binary(file_data) -> bool:
 
 
 def get_total_ram_used_percent() -> int:
-    """Returns the percentage of RAM currently in use on the machine."""
+    """Returns the percentage of RAM currently in use on the machine as an integer."""
     return int(psutil.virtual_memory().percent)
 
 
@@ -42,9 +42,7 @@ def add_file_to_zip_archive(file_name: str, file_data, zip_archive: zipfile.ZipF
 
 def merge_zip_archives(parent_dir: str, output_dir: str, archive_name: str):
     """
-    Merges zip archives with the same name in subdirectories of the parent directory into a single zip archive. 
-    This is necessary because each search process creates independent zip archives for the data it processed
-    that must be combined into a single archive per-definition once searching concludes.
+    Merges identically named zip archives in subdirectories of the parent directory into a single zip archive in the output directory. 
     """
     combined_zip = os.path.join(output_dir, f"{archive_name}.zip")
     added_files = set()

@@ -21,8 +21,8 @@ PAUSE_READ_THREADS_EVENT = Event()
 
 def perform_search():
     """
-    Intiates the search by setting up resources and starting the search processes.
-    Once the search processes complete, it finalizes the results zip archives if configured to do so.
+    Intiates the search by setting up resources and starting the search worker processes.
+    Once the search worker processes complete, it finalizes the results zip archives if configured to do so.
     """
     warc_gz_files_list = glob.glob(f"{config.settings["WARC_GZ_ARCHIVES_DIRECTORY"]}/*.gz")
 
@@ -233,7 +233,7 @@ def search_warc_record(warc_record: WarcRecord, results_and_regexes_dict: dict, 
             matches_in_contents = find_regex_matches(warc_record.contents.decode('utf-8', 'ignore'), regex)
         
         if matches_in_name or matches_in_contents:
-            write_record_to_output_buffer(
+            write_record_info_to_result_output_buffer(
                 result_files_write_buffers[results_file_path], 
                 matches_in_name, 
                 matches_in_contents, 
