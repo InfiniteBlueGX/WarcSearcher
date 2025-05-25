@@ -2,10 +2,6 @@ import re
 from utilities import *
 import io
 import zipfile
-from utilities import add_file_to_zip_archive, sanitize_file_name_string
-# import tempfile
-# import shutil
-# import os
 
 def test_find_regex_matches_multiple():
     pattern = re.compile(r'\d+')
