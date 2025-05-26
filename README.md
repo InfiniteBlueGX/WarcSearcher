@@ -22,7 +22,7 @@ WarcSearcher will output the results in text format: one results file for each d
 * Ensure Python is installed and download/clone the repository.
 * Using a terminal, navigate to the repository and install all required libraries: `pip install -r requirements.txt`
 * Configure `config.ini` at the root of the repository (see section below).
-* Run `WarcSearcher.py` in the `source` folder.
+* Run `main.py` in the `source` folder.
 
 ## Configuration
 
