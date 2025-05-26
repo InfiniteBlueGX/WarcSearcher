@@ -200,6 +200,10 @@ def initialize_worker_process_resources(results_and_regexes_dict: dict, zip_file
     }
     
     zip_archives_dict = {}
+    # Immediately return if there are no result files, to avoid calling next() on an empty iterator.
+    if not results_and_regexes_dict:
+        return result_files_write_buffers, zip_archives_dict
+
     if zip_files_with_matches:
         results_dir = os.path.dirname(next(iter(results_and_regexes_dict.keys())))
         zip_temp_dir_for_process = os.path.join(f"{results_dir}/temp", str(os.getpid()))
