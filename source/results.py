@@ -23,7 +23,7 @@ def create_result_files_associated_with_regexes_dict() -> dict[str, re.Pattern]:
     definition_files = get_definition_txt_files_list()
 
     results_file_regex_pattern_dict = {}
-    
+
     for definition_file_path in definition_files:
         regex_pattern, success = compile_regex_pattern_from_definition_file(definition_file_path)
         if success:
