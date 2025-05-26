@@ -612,11 +612,12 @@ def test_finalize_results_zip_archives_calls_merge_and_removes_temp(monkeypatch,
     assert any("Finalizing the zip archives" in msg for msg in called["log_info"])
     # Check merge_zip_archives called for each file
     assert len(called["merge_zip_archives"]) == len(results_file_paths)
-    for i, results_path in enumerate(results_file_paths):
-        tempdir, outdir, base_name = called["merge_zip_archives"][i]
-        assert tempdir == os.path.join(str(tmp_path), "temp")
-        assert outdir == str(tmp_path)
-        assert base_name == f"base_{os.path.basename(results_path)}"
+    expected_calls = set(
+    (os.path.join(str(tmp_path), "temp"), str(tmp_path), f"base_{os.path.basename(results_path)}")
+        for results_path in results_file_paths
+    )
+    actual_calls = set(tuple(call) for call in called["merge_zip_archives"])
+    assert actual_calls == expected_calls
     # Check rmtree called for tempdir
     assert called["rmtree"] == [os.path.join(str(tmp_path), "temp")]
 
@@ -652,7 +653,7 @@ def test_finalize_results_zip_archives_propagates_merge_exception(monkeypatch, t
 
     with pytest.raises(RuntimeError, match="merge failed"):
         results.finalize_results_zip_archives([str(tmp_path / "file.txt")])
-        
+
 def test_get_results_file_path_returns_expected_path(monkeypatch, tmp_path):
     # Patch results_output_subdirectory to a known value
     monkeypatch.setattr("results.results_output_subdirectory", str(tmp_path))
