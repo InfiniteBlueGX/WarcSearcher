@@ -37,7 +37,7 @@ jobs:
 
     - name: Check coverage percentage
       run: |
-        coverage report --fail-under=80
+        coverage report --fail-under=90
 
     - name: Upload coverage results
       uses: actions/upload-artifact@v4
