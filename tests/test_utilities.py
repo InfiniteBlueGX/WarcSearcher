@@ -1,4 +1,5 @@
 import re
+import sys
 from utilities import *
 import io
 import zipfile
@@ -53,7 +54,12 @@ def test_get_base_file_name_hidden_file():
     assert get_base_file_name("/path/.hiddenfile") == ".hiddenfile"
 
 def test_get_base_file_name_windows_path():
-    assert get_base_file_name(r"C:\Users\user\document.pdf") == "document"
+    if sys.platform.startswith("win"):
+        assert get_base_file_name(r"C:\Users\user\document.pdf") == "document"
+
+def test_get_base_file_name_linux_path():
+    if sys.platform.startswith("linux"):
+        assert get_base_file_name("/home/user/document.pdf") == "document"
 
 def test_get_base_file_name_trailing_slash():
     assert get_base_file_name("folder/") == ""
