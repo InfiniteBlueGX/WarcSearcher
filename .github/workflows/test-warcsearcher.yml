@@ -52,27 +52,20 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     
-    - name: Create test directory and add sample files
+    - name: Set up test data
       run: |
-        mkdir -p ./test-data/warc_gz_archives
-        mkdir -p ./test-data/regex_definitions
-        mkdir -p ./test-data/results_output
-        
-        # Create sample input files
-        # echo "Sample content for input1" > ./test-data/input/input1.txt
-        # echo "Another sample content for input2" > ./test-data/input/input2.txt
-
         rm ./config.ini
-        cp tests/test_config.ini ./config.ini
+        cp ./tests/test_data/test_config.ini ./config.ini
         test -f "./config.ini"
 
     - name: Run application
       run: |
+        # TODO make this fail on error later on
         python source/main.py
 
     - name: Verify output files
       run: |
         # Check if directories exist
-        test -d "./test-data/warc_gz_archives"
-        test -d "./test-data/regex_definitions"
-        test -d "./test-data/results_output"
+        test -d "./test-data/test_warc_gz_archives"
+        test -d "./test-data/test_regex_definitions"
+        test -d "./test-data/test_results_output"
