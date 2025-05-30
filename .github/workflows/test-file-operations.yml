@@ -17,7 +17,7 @@ jobs:
 
       - name: Run application
         run: |
-          python source\main.py
+          python source/main.py
 
       - name: Verify output files
         run: |
