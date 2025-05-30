@@ -66,6 +66,6 @@ jobs:
     - name: Verify output files
       run: |
         # Check if directories exist
-        test -d "./test_data/test_warc_gz_archives"
-        test -d "./test_data/test_regex_definitions"
-        test -d "./test_data/test_results_output"
+        test -d "./tests/test_data/test_warc_gz_archives"
+        test -d "./tests/test_data/test_regex_definitions"
+        test -d "./tests/test_data/test_results_output"
