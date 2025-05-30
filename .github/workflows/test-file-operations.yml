@@ -1,0 +1,29 @@
+name: Test File Operations
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Create test directory and add sample files
+        run: |
+          mkdir -p ./test-data/input
+          mkdir -p ./test-data/expected-output
+          
+          # Create sample input files
+          echo "Sample content for input1" > ./test-data/input/input1.txt
+          echo "Another sample content for input2" > ./test-data/input/input2.txt
+
+      - name: Run application
+        run: |
+          python source\main.py
+
+      - name: Verify output files
+        run: |
+          # Check if output directory exists
+          # test -d "./test-data/output"
+          
+          # Check
+          test -d "./test-data/output"
+          test -d "./test-data/output"
