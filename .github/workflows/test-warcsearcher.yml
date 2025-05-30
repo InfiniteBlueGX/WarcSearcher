@@ -66,7 +66,8 @@ jobs:
     - name: Verify output files
       run: |
         # Check if directories exist
-        ls
+        ls tests
+        ls tests/test_data
         test -d "./tests/test_data/test_warc_gz_archives"
         test -d "./tests/test_data/test_regex_definitions"
         test -d "./tests/test_data/test_results_output"
