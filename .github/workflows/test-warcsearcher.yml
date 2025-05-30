@@ -63,7 +63,7 @@ jobs:
 
         rm ./config.ini
         cp tests/test_config.ini ./config.ini
-        test -f "./config.ini"
+        test -f "./confiig.ini"
 
     - name: Run application
       run: |
