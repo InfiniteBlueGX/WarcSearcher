@@ -54,16 +54,17 @@ jobs:
     
     - name: Create test directory and add sample files
       run: |
-        mkdir -p ./test-data/input
-        mkdir -p ./test-data/expected-output
+        mkdir -p ./test-data/warc_gz_archives
+        mkdir -p ./test-data/regex_definitions
+        mkdir -p ./test-data/results_output
         
         # Create sample input files
-        echo "Sample content for input1" > ./test-data/input/input1.txt
-        echo "Another sample content for input2" > ./test-data/input/input2.txt
+        # echo "Sample content for input1" > ./test-data/input/input1.txt
+        # echo "Another sample content for input2" > ./test-data/input/input2.txt
 
         rm ./config.ini
         cp tests/test_config.ini ./config.ini
-        test -f "./confiig.ini"
+        test -f "./config.ini"
 
     - name: Run application
       run: |
@@ -72,5 +73,6 @@ jobs:
     - name: Verify output files
       run: |
         # Check if directories exist
-        test -d "./test-data/input"
-        test -d "./test-data/expected-output"
+        test -d "./test-data/warc_gz_archives"
+        test -d "./test-data/regex_definitions"
+        test -d "./test-data/results_output"
