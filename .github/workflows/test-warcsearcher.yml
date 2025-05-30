@@ -61,6 +61,10 @@ jobs:
         echo "Sample content for input1" > ./test-data/input/input1.txt
         echo "Another sample content for input2" > ./test-data/input/input2.txt
 
+        rm ./config.ini
+        cp tests/test_config.ini ./config.ini
+        test -f "./config.ini"
+
     - name: Run application
       run: |
         python source/main.py
