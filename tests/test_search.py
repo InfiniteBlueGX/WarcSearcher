@@ -285,7 +285,7 @@ def test_initiate_search_worker_processes_basic(monkeypatch):
         assert args[3] == result_files_write_locks_dict
         # args[4] is config.settings["ZIP_FILES_WITH_MATCHES"], not checked here
     assert called["read_threads"] == gz_files_list
-    assert "All records read from the WARC.gz files." in "".join(called["log_info"])
+    assert "records read from the WARC.gz files." in "".join(called["log_info"])
     assert called["signal_workers"] == 2
     assert called["print_remaining"] is True
     assert called["waited"] is True
