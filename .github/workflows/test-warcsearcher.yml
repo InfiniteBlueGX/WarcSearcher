@@ -36,7 +36,7 @@ jobs:
         coverage report --fail-under=80
 
   file-operations:
-    name: File Operations Tests
+    name: Test WarcSearcher Results
     runs-on: ubuntu-latest
 
     steps:
@@ -63,9 +63,8 @@ jobs:
         set -e
         python source/main.py
 
-    - name: Verify output files
+    - name: Verify output files exist
       run: |
-        # Check if directories exist
         test -d "./tests/test_data/test_warc_gz_archives"
         test -d "./tests/test_data/test_regex_definitions"
         test -d "./tests/test_data/test_results_output"
@@ -76,7 +75,8 @@ jobs:
         test $(find "./tests/test_data/test_results_output" -name "slamfest_results.txt" | wc -l) -gt 0
         test $(find "./tests/test_data/test_results_output" -name "slamfest_results.zip" | wc -l) -gt 0
 
-        # Check file sizes
+    - name: Verify output file sizes
+      run: |
         txt_size_kb=$(stat -c %s "./tests/test_data/test_results_output/"*"/slamfest_results.txt")
         zip_size_kb=$(stat -c %s "./tests/test_data/test_results_output/"*"/slamfest_results.zip")
 
