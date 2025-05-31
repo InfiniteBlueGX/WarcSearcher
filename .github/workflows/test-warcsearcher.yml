@@ -76,5 +76,19 @@ jobs:
         test $(find "./tests/test_data/test_results_output" -name "slamfest_results.txt" | wc -l) -gt 0
         test $(find "./tests/test_data/test_results_output" -name "slamfest_results.zip" | wc -l) -gt 0
 
-        test $(stat -f %z "./tests/test_data/test_results_output/"*"/slamfest_results.txt" | awk '{printf "%.0f\n", $1/1024}') -eq 28
-        test $(stat -f %z "./tests/test_data/test_results_output/"*"/slamfest_results.zip" | awk '{printf "%.0f\n", $1/1024}') -eq 305
+        # Check file sizes
+        txt_size_kb=$(stat -c %s "./tests/test_data/test_results_output/"*"/slamfest_results.txt")
+        zip_size_kb=$(stat -c %s "./tests/test_data/test_results_output/"*"/slamfest_results.zip")
+
+        txt_size_kb=$((txt_size_kb / 1024))
+        zip_size_kb=$((zip_size_kb / 1024))
+
+        if [ "$txt_size_kb" -ne 28 ]; then
+          echo "slamfest_results.txt is not 28KB, it is ${txt_size_kb}KB"
+          exit 1
+        fi
+
+        if [ "$zip_size_kb" -ne 305 ]; then
+          echo "slamfest_results.zip is not 305KB, it is ${zip_size_kb}KB"
+          exit 1
+        fi
