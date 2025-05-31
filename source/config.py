@@ -29,7 +29,7 @@ def read_config_ini_variables():
         
     except Exception as e:
         log_error(f"Error reading the contents of the config.ini file: \n{e}")
-        sys.exit()
+        sys.exit(1)
 
 
 def read_required_config_ini_variables(parser: configparser.ConfigParser):
@@ -65,7 +65,7 @@ def validate_and_get_config_ini_path() -> str:
         config_path = '../config.ini'
     else:
         log_error("config.ini file does not exist in the working directory or its parent directory. Exiting.")
-        sys.exit()
+        sys.exit(1)
         return
 
     return config_path
@@ -75,12 +75,12 @@ def validate_and_get_warc_gz_archives_directory(parsed_warc_gz_archives_director
     """Validates and returns the config.ini value for the directory containing the warc.gz archives."""
     if not os.path.exists(parsed_warc_gz_archives_directory):
         log_error(f"Directory containing the warc.gz archives to search does not exist: {parsed_warc_gz_archives_directory}. Exiting.")
-        sys.exit()
+        sys.exit(1)
         return
 
     if not glob.glob(parsed_warc_gz_archives_directory + '/*.gz'):
         log_error(f"Directory that should contain the .gz archives to search does not contain any: {parsed_warc_gz_archives_directory}. Exiting.")
-        sys.exit()
+        sys.exit(1)
         return
 
     return parsed_warc_gz_archives_directory
@@ -90,12 +90,12 @@ def validate_and_get_search_regex_definitions_directory(parsed_search_regex_defi
     """Validates and returns the config.ini value for the directory containing the regex definition text files."""
     if not os.path.exists(parsed_search_regex_definitions_directory):
         log_error(f"Directory containing the regex definition .txt files to search with does not exist: {parsed_search_regex_definitions_directory}. Exiting.")
-        sys.exit()
+        sys.exit(1)
         return
 
     if not glob.glob(parsed_search_regex_definitions_directory + '/*.txt'):
         log_error(f"Directory that should contain the regex definition .txt files to search with does not contain any: {parsed_search_regex_definitions_directory}. Exiting.")
-        sys.exit()
+        sys.exit(1)
         return
 
     return parsed_search_regex_definitions_directory
@@ -105,7 +105,7 @@ def validate_and_get_results_output_directory(parsed_results_output_directory: s
     """Validates and returns the config.ini value for the directory to output the search results to."""
     if not os.path.exists(parsed_results_output_directory):
         log_error(f"Directory to output the search results to does not exist: {parsed_results_output_directory}. Exiting.")
-        sys.exit()
+        sys.exit(1)
         return
     
     return parsed_results_output_directory

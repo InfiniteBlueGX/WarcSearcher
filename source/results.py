@@ -32,7 +32,7 @@ def create_result_files_associated_with_regexes_dict() -> dict[str, re.Pattern]:
     
     if not results_file_regex_pattern_dict:
         log_error("No valid regex patterns were found in any of the definition files. Exiting.")
-        sys.exit()
+        sys.exit(1)
     
     return results_file_regex_pattern_dict
 

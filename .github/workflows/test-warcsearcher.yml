@@ -60,7 +60,7 @@ jobs:
 
     - name: Run application
       run: |
-        # TODO make this fail on error later on
+        set -e
         python source/main.py
 
     - name: Verify output files
