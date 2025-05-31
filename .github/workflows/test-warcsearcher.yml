@@ -52,25 +52,29 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     
-    - name: Set up test data
-      run: |
-        rm ./config.ini
-        cp ./tests/test_data/test_config.ini ./config.ini
-        test -f "./config.ini"
-
-    - name: Run application
-      run: |
-        set -e
-        python source/main.py
-
-    - name: Verify output files exist
+    - name: Initialize test data
       run: |
         test -d "./tests/test_data/test_warc_gz_archives"
         test -d "./tests/test_data/test_regex_definitions"
         test -d "./tests/test_data/test_results_output"
+        test -d "./tests/test_data/test_config.ini"
 
+        # Replace the default config.ini with the CI testing one
+        rm ./config.ini
+        cp ./tests/test_data/test_config.ini ./config.ini
+        test -f "./config.ini"
+
+    - name: Run WarcSearcher
+      run: |
+        set -e
+        python source/main.py
+
+    - name: List output folder contents
+      run: |
         ls -lhR "./tests/test_data/test_results_output"
 
+    - name: Verify output files exist
+      run: |
         test $(find "./tests/test_data/test_results_output" -name "log.log" | wc -l) -gt 0
         test $(find "./tests/test_data/test_results_output" -name "slamfest_results.txt" | wc -l) -gt 0
         test $(find "./tests/test_data/test_results_output" -name "slamfest_results.zip" | wc -l) -gt 0
