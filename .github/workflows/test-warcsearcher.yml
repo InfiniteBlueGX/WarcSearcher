@@ -71,3 +71,7 @@ jobs:
         test -d "./tests/test_data/test_results_output"
 
         ls -lhR "./tests/test_data/test_results_output"
+
+        test $(find "./tests/test_data/test_results_output" -name "log.txt" | wc -l) -gt 0
+        test $(find "./tests/test_data/test_results_output" -name "slamfest_results.txt" | wc -l) -gt 0
+        test $(find "./tests/test_data/test_results_output" -name "slamfest_results.zip" | wc -l) -gt 0
