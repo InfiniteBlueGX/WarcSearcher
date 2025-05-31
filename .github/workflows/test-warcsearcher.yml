@@ -54,14 +54,14 @@ jobs:
     
     - name: Initialize test data
       run: |
-        test -d "./tests/test_data/test_warc_gz_archives"
-        test -d "./tests/test_data/test_regex_definitions"
-        test -d "./tests/test_data/test_results_output"
-        test -f "./tests/test_data/test_config.ini"
+        test -d "./tests/test_data_ci/test_warc_gz_archives"
+        test -d "./tests/test_data_ci/test_regex_definitions"
+        test -d "./tests/test_data_ci/test_results_output"
+        test -f "./tests/test_data_ci/test_config.ini"
 
         # Replace the default config.ini with the CI testing one
         rm ./config.ini
-        cp ./tests/test_data/test_config.ini ./config.ini
+        cp ./tests/test_data_ci/test_config.ini ./config.ini
         test -f "./config.ini"
 
     - name: Run WarcSearcher
@@ -71,18 +71,18 @@ jobs:
 
     - name: List output folder contents
       run: |
-        ls -lhR "./tests/test_data/test_results_output"
+        ls -lhR "./tests/test_data_ci/test_results_output"
 
     - name: Verify output files exist
       run: |
-        test $(find "./tests/test_data/test_results_output" -name "log.log" | wc -l) -gt 0
-        test $(find "./tests/test_data/test_results_output" -name "slamfest_results.txt" | wc -l) -gt 0
-        test $(find "./tests/test_data/test_results_output" -name "slamfest_results.zip" | wc -l) -gt 0
+        test $(find "./tests/test_data_ci/test_results_output" -name "log.log" | wc -l) -gt 0
+        test $(find "./tests/test_data_ci/test_results_output" -name "slamfest_results.txt" | wc -l) -gt 0
+        test $(find "./tests/test_data_ci/test_results_output" -name "slamfest_results.zip" | wc -l) -gt 0
 
     - name: Verify output file sizes
       run: |
-        txt_size_kb=$(stat -c %s "./tests/test_data/test_results_output/"*"/slamfest_results.txt")
-        zip_size_kb=$(stat -c %s "./tests/test_data/test_results_output/"*"/slamfest_results.zip")
+        txt_size_kb=$(stat -c %s "./tests/test_data_ci/test_results_output/"*"/slamfest_results.txt")
+        zip_size_kb=$(stat -c %s "./tests/test_data_ci/test_results_output/"*"/slamfest_results.zip")
 
         txt_size_kb=$(( (txt_size_kb + 1023) / 1024 ))
         zip_size_kb=$(( (zip_size_kb + 1023) / 1024 ))
