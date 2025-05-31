@@ -72,6 +72,9 @@ jobs:
 
         ls -lhR "./tests/test_data/test_results_output"
 
-        test $(find "./tests/test_data/test_results_output" -name "log.txt" | wc -l) -gt 0
+        test $(find "./tests/test_data/test_results_output" -name "log.log" | wc -l) -gt 0
         test $(find "./tests/test_data/test_results_output" -name "slamfest_results.txt" | wc -l) -gt 0
         test $(find "./tests/test_data/test_results_output" -name "slamfest_results.zip" | wc -l) -gt 0
+
+        test $(stat -f %z "./tests/test_data/test_results_output/"*"/slamfest_results.txt" | awk '{printf "%.0f\n", $1/1024}') -eq 28
+        test $(stat -f %z "./tests/test_data/test_results_output/"*"/slamfest_results.zip" | awk '{printf "%.0f\n", $1/1024}') -eq 305
