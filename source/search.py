@@ -58,7 +58,7 @@ def initiate_search_worker_processes(gz_files_list: list, results_and_regexes_di
         initiate_warc_gz_read_threads(gz_files_list)
         
         print("\n")
-        log_info("All records read from the WARC.gz files. Waiting on search worker processes to finish...\n")
+        log_info(f"All {TOTAL_RECORDS_READ} response records read from the WARC.gz files. Waiting on search worker processes to finish...\n")
 
         signal_worker_processes_to_stop(max_worker_processes) 
         print_remaining_search_queue_items()
